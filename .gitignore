@@ -1,0 +1,11 @@
+# build output
+/flatlinecc
+/dist/
+
+# local device data (rides, routes, backups)
+/data/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
