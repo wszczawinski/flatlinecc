@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -19,7 +18,6 @@ var menuItems = []string{
 
 type Menu struct {
 	cursor int
-	status string
 }
 
 func NewMenu() Menu {
@@ -37,7 +35,7 @@ func (m Menu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch key.String() {
-	case "q", "ctrl+c":
+	case "q":
 		return m, tea.Quit
 	case "up", "k":
 		if m.cursor > 0 {
@@ -48,24 +46,19 @@ func (m Menu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor++
 		}
 	case "enter":
-		m.status = fmt.Sprintf("%s: not implemented yet", menuItems[m.cursor])
+		return m, open(NewPlaceholder(menuItems[m.cursor]))
 	}
 	return m, nil
 }
 
 func (m Menu) View() string {
-	var b strings.Builder
-	b.WriteString("flatlinecc\n\n")
+	lines := make([]string, len(menuItems))
 	for i, item := range menuItems {
-		cursor := "  "
 		if i == m.cursor {
-			cursor = "> "
+			lines[i] = selectedStyle.Render("> " + item)
+		} else {
+			lines[i] = itemStyle.Render(item)
 		}
-		b.WriteString(cursor + item + "\n")
 	}
-	if m.status != "" {
-		b.WriteString("\n" + m.status + "\n")
-	}
-	b.WriteString("\n↑/↓ move · enter select · q quit\n")
-	return b.String()
+	return frame("flatlinecc", strings.Join(lines, "\n"), "↑/↓ move · enter select · q quit")
 }
