@@ -1,27 +1,35 @@
 package tui
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	tea "github.com/charmbracelet/bubbletea"
 
-// openMsg asks the app to show a screen.
-type openMsg struct{ screen tea.Model }
+	"github.com/wszczawinski/flatlinecc/internal/config"
+)
+
+// selectMsg asks the app to open the screen for a menu item.
+type selectMsg struct{ item string }
 
 // backMsg asks the app to return to the menu.
 type backMsg struct{}
 
-func open(screen tea.Model) tea.Cmd {
-	return func() tea.Msg { return openMsg{screen} }
+// configSavedMsg tells the app the config changed.
+type configSavedMsg struct{ cfg config.Config }
+
+func selectItem(item string) tea.Cmd {
+	return func() tea.Msg { return selectMsg{item} }
 }
 
 func back() tea.Msg { return backMsg{} }
 
 // App is the root model: the menu, or a screen opened from it.
 type App struct {
+	cfg    config.Config
 	menu   Menu
 	screen tea.Model
 }
 
-func New() App {
-	return App{menu: NewMenu()}
+func New(cfg config.Config) App {
+	return App{cfg: cfg, menu: NewMenu()}
 }
 
 func (a App) Init() tea.Cmd {
@@ -34,11 +42,14 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "ctrl+c" {
 			return a, tea.Quit
 		}
-	case openMsg:
-		a.screen = msg.screen
+	case selectMsg:
+		a.screen = a.screenFor(msg.item)
 		return a, a.screen.Init()
 	case backMsg:
 		a.screen = nil
+		return a, nil
+	case configSavedMsg:
+		a.cfg = msg.cfg
 		return a, nil
 	}
 
@@ -57,4 +68,12 @@ func (a App) View() string {
 		return a.screen.View()
 	}
 	return a.menu.View()
+}
+
+func (a App) screenFor(item string) tea.Model {
+	switch item {
+	case "Settings":
+		return NewSettings(a.cfg)
+	}
+	return NewPlaceholder(item)
 }

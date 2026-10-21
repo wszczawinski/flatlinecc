@@ -25,7 +25,7 @@ Bluetooth on the device is broken; everything goes over USB.
 Stage edits → review diff → Apply (auto backup → push to `/sdcard/config_restore` → reboot).
 
 ## Local data
-One configurable folder (default `./data` in the repo):
+One configurable folder (default `./data` in the repo). Each feature creates its subfolder on first write.
 ```
 data/
   rides/

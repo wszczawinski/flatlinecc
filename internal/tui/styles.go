@@ -18,6 +18,8 @@ var (
 	itemStyle     = lipgloss.NewStyle().PaddingLeft(2)
 	selectedStyle = lipgloss.NewStyle().Foreground(accent).Bold(true)
 	helpStyle     = lipgloss.NewStyle().Foreground(muted).MarginTop(1)
+	labelStyle    = lipgloss.NewStyle().Bold(true)
+	errorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF5F5F"))
 )
 
 // frame lays out a screen: title bar, body, help line.

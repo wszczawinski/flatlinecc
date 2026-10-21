@@ -46,7 +46,7 @@ func (m Menu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor++
 		}
 	case "enter":
-		return m, open(NewPlaceholder(menuItems[m.cursor]))
+		return m, selectItem(menuItems[m.cursor])
 	}
 	return m, nil
 }
