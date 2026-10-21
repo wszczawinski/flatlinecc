@@ -42,19 +42,6 @@ data/
 6. Sounds
 7. Device info
 
-## Conventions
-- Commits: [Conventional Commits](https://www.conventionalcommits.org) (`feat`, `fix`, `docs`, `chore`, …)
-- Versions: [SemVer](https://semver.org), `0.x.y` until usable. Tag `v0.1.0` after milestone 1.
-- Changelog: [git-cliff](https://git-cliff.org) (`brew install git-cliff`, config in `cliff.toml`)
-
-Release flow:
-```
-git cliff --bump -o CHANGELOG.md
-git add CHANGELOG.md
-git commit -m "chore(release): prepare for vX.Y.Z"
-git tag vX.Y.Z
-```
-
 ## Later / research
 - Instant apply without reboot (send app config messages via adb)
 - Direct USB, no adb dependency

@@ -53,6 +53,18 @@ internal/config/  # settings
 internal/tui/     # menu and screens
 ```
 
+## Releasing
+
+[Conventional Commits](https://www.conventionalcommits.org) + [SemVer](https://semver.org). [git-cliff](https://git-cliff.org) generates `CHANGELOG.md` and picks the next version from commits since the last tag.
+
+```
+git cliff --bump -o CHANGELOG.md
+git add CHANGELOG.md
+git commit -m "chore(release): prepare for vX.Y.Z"
+git tag vX.Y.Z
+git push && git push --tags
+```
+
 ## Status
 
 Early work in progress.
