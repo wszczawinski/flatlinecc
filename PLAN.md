@@ -22,7 +22,7 @@ Bluetooth on the device is broken; everything goes over USB.
 7. **Settings**: data folder path, saved to a config file
 
 ## Apply flow
-Stage edits → review diff → Apply (auto backup → push to `/sdcard/config_restore` → reboot).
+Stage edits → review diff → Apply (auto backup of `BCfgManager-Bolt.xml` → push edited file → fix owner/perms → `force-stop` app, it restarts with the new config in seconds → pull and verify). Details in `docs/format.md`.
 
 ## Local data
 One configurable folder (default `./data` in the repo). Each feature creates its subfolder on first write.
@@ -35,7 +35,7 @@ data/
 
 ## Milestones
 1. **Skeleton**: menu, settings screen, adb connection
-2. Config backup + parser/writer for `bolt-65535.cfg` (`DISPLAY_CFG`), round-trip byte-identical
+2. Parser/writer for `DISPLAY_CFG` + live config (`BCfgManager-Bolt.xml`), round-trip byte-identical
 3. Screen editor + apply flow
 4. Backup / restore UI
 5. Rides pull, routes push
@@ -43,7 +43,6 @@ data/
 7. Device info
 
 ## Later / research
-- Instant apply without reboot (send app config messages via adb)
 - Direct USB, no adb dependency
 - Polish translations (out of scope for now)
 

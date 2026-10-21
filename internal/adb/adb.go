@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -35,6 +36,43 @@ func run(args ...string) (string, error) {
 		return "", err
 	}
 	return string(out), nil
+}
+
+// Shell runs a command on the device and returns its output.
+func Shell(serial string, args ...string) (string, error) {
+	return run(append([]string{"-s", serial, "shell"}, args...)...)
+}
+
+// Pull reads a file from the device.
+func Pull(serial, remote string) ([]byte, error) {
+	tmp, err := os.CreateTemp("", "flatlinecc-*")
+	if err != nil {
+		return nil, err
+	}
+	tmp.Close()
+	defer os.Remove(tmp.Name())
+	if _, err := run("-s", serial, "pull", remote, tmp.Name()); err != nil {
+		return nil, err
+	}
+	return os.ReadFile(tmp.Name())
+}
+
+// Push writes data to a file on the device.
+func Push(serial string, data []byte, remote string) error {
+	tmp, err := os.CreateTemp("", "flatlinecc-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	_, err = run("-s", serial, "push", tmp.Name(), remote)
+	return err
 }
 
 // Devices lists attached devices (adb devices -l).
