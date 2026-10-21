@@ -17,17 +17,13 @@ func Default() Config {
 	return Config{DataDir: "./data"}
 }
 
-// Path returns $XDG_CONFIG_HOME/flatlinecc/config.toml, falling back to ~/.config.
+// Path returns ~/.config/flatlinecc/config.toml.
 func Path() (string, error) {
-	dir := os.Getenv("XDG_CONFIG_HOME")
-	if dir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		dir = filepath.Join(home, ".config")
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
 	}
-	return filepath.Join(dir, "flatlinecc", "config.toml"), nil
+	return filepath.Join(home, ".config", "flatlinecc", "config.toml"), nil
 }
 
 // Load reads the config file, returning defaults if it doesn't exist yet.
@@ -39,9 +35,6 @@ func Load() (Config, error) {
 	}
 	if _, err := toml.DecodeFile(path, &cfg); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return cfg, err
-	}
-	if cfg.DataDir == "" {
-		cfg.DataDir = Default().DataDir
 	}
 	return cfg, nil
 }

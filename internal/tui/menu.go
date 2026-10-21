@@ -20,15 +20,7 @@ type Menu struct {
 	cursor int
 }
 
-func NewMenu() Menu {
-	return Menu{}
-}
-
-func (m Menu) Init() tea.Cmd {
-	return nil
-}
-
-func (m Menu) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Menu) Update(msg tea.Msg) (Menu, tea.Cmd) {
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return m, nil
