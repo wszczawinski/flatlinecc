@@ -22,6 +22,17 @@ Built with Go and [Charm](https://charm.sh) (Bubble Tea, Bubbles, Lip Gloss, Huh
 
 See [PLAN.md](PLAN.md) for details and milestones.
 
+## Connecting the ROAM
+
+The ROAM must authorize your computer for `adb`. This has to be repeated every time you plug it in:
+
+1. Start the adb server once (`adb devices`) so your key exists in `~/.android/adbkey`
+2. Unplug the ROAM (keep it on)
+3. Press **power** (opens settings), then **power** again (back)
+4. Plug in the USB cable
+
+`adb devices -l` should now show `device` instead of `unauthorized`.
+
 ## Development
 
 Requires Go and `adb` (`brew install go android-platform-tools`).

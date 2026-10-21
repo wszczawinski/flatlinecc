@@ -51,7 +51,7 @@ Release flow:
 ```
 git cliff --bump -o CHANGELOG.md
 git add CHANGELOG.md
-git commit -m "chore(release): vX.Y.Z"
+git commit -m "chore(release): prepare for vX.Y.Z"
 git tag vX.Y.Z
 ```
 
@@ -65,7 +65,7 @@ git tag vX.Y.Z
 
 ## References
 - ADB enable + config backup/restore: https://gist.github.com/Intyre/2c0a8e337671ed6f523950ef08e3ca3f
-  - ADB: press power twice, unplug/replug USB
+  - ADB auth (verified on ROAM v1, `product:roam1p1 model:ELEMNT_ROAM1_1`): unplug → power (settings) → power (back) → plug in. The adb key (`~/.android/adbkey`) must exist first, so start the adb server once before doing this.
   - Backup: `mkdir /sdcard/config_backup` → `elemnt_config.zip` appears
   - Restore: push zip to `/sdcard/config_restore`, reboot
 - cfg file reader (Python) + key names: https://gist.github.com/Intyre/05957b64b3fb1306361ca9e79ca01ac1
