@@ -23,5 +23,5 @@ func (p Placeholder) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (p Placeholder) View() string {
-	return frame(p.title, "Not implemented yet.", "esc back")
+	return frame(crumbs(p.title), "Not implemented yet.", "esc back")
 }

@@ -108,6 +108,8 @@ func (a App) View() string {
 
 func (a App) screenFor(item string) tea.Model {
 	switch item {
+	case "Screens":
+		return NewScreens(a.connected().Serial)
 	case "Settings":
 		return NewSettings(a.cfg)
 	case "Device info":

@@ -101,5 +101,5 @@ func (d DeviceInfo) View() string {
 		}
 		body = strings.Join(lines, "\n")
 	}
-	return frame("Device info", body, "esc back")
+	return frame(crumbs("Device info"), body, "esc back")
 }

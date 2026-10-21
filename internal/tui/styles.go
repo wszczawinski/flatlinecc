@@ -1,6 +1,10 @@
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 var (
 	accent = lipgloss.AdaptiveColor{Light: "#00875F", Dark: "#00FF9F"}
@@ -24,6 +28,11 @@ var (
 	mutedStyle    = lipgloss.NewStyle().Foreground(muted)
 	statusStyle   = lipgloss.NewStyle().PaddingLeft(2).PaddingTop(1)
 )
+
+// crumbs builds a breadcrumb title starting at the app name.
+func crumbs(path ...string) string {
+	return strings.Join(append([]string{"flatlinecc"}, path...), " › ")
+}
 
 // frame lays out a screen: title bar, body, help line.
 func frame(title, body, help string) string {

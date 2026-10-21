@@ -46,11 +46,7 @@ func (m Menu) Update(msg tea.Msg) (Menu, tea.Cmd) {
 func (m Menu) View() string {
 	lines := make([]string, len(menuItems))
 	for i, item := range menuItems {
-		if i == m.cursor {
-			lines[i] = selectedStyle.Render("> " + item)
-		} else {
-			lines[i] = itemStyle.Render(item)
-		}
+		lines[i] = listLine(item, i == m.cursor)
 	}
-	return frame("flatlinecc", strings.Join(lines, "\n"), "↑/↓ move · enter select · q quit")
+	return frame(crumbs(), strings.Join(lines, "\n"), "↑/↓ move · enter select · q quit")
 }

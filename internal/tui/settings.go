@@ -61,5 +61,5 @@ func (s Settings) View() string {
 	if s.status != "" {
 		body += "\n\n" + s.status
 	}
-	return frame("Settings", body, "enter save · esc back")
+	return frame(crumbs("Settings"), body, "enter save · esc back")
 }
