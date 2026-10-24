@@ -15,10 +15,7 @@ import (
 	"github.com/wszczawinski/flatlinecc/internal/wahoo"
 )
 
-const (
-	ridesRows   = 15
-	rideTimeout = 2 * time.Minute // one .fit file
-)
+const rideTimeout = 2 * time.Minute // one .fit file
 
 func ridesDir(dataDir string) string {
 	return filepath.Join(dataDir, "rides")
@@ -150,7 +147,7 @@ func (r Rides) View() string {
 
 	newCount := len(r.rides) - len(r.synced)
 	lines := []string{mutedStyle.Render(fmt.Sprintf("%d rides · %d new", len(r.rides), newCount)), ""}
-	start, end := window(r.cursor, len(r.rides), ridesRows)
+	start, end := window(r.cursor, len(r.rides), listRows)
 	for i := start; i < end; i++ {
 		ride := r.rides[i]
 		state := selectedStyle.Render("new")
@@ -176,14 +173,4 @@ func rideTime(name string) string {
 		}
 	}
 	return name
-}
-
-func humanSize(n int64) string {
-	switch {
-	case n >= 1<<20:
-		return fmt.Sprintf("%.1f MB", float64(n)/(1<<20))
-	case n >= 1<<10:
-		return fmt.Sprintf("%d KB", n/(1<<10))
-	}
-	return fmt.Sprintf("%d B", n)
 }

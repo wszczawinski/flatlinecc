@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/wszczawinski/flatlinecc/internal/adb"
+	"github.com/wszczawinski/flatlinecc/internal/wahoo"
 )
 
 const (
@@ -41,9 +42,6 @@ func statusLine(d *adb.Device) string {
 	}
 	return selectedStyle.Render("● " + name + " connected")
 }
-
-// boltApp is the Wahoo app on the device; its version is the firmware version.
-const boltApp = "com.wahoofitness.bolt"
 
 type propsMsg struct {
 	props    map[string]string
@@ -81,7 +79,7 @@ func (d DeviceInfo) Init() tea.Cmd {
 		if err != nil {
 			return propsMsg{err: err}
 		}
-		firmware, err := adb.PackageVersion(ctx, d.serial, boltApp)
+		firmware, err := adb.PackageVersion(ctx, d.serial, wahoo.App) // the app version is the firmware version
 		return propsMsg{props, firmware, err}
 	}
 }

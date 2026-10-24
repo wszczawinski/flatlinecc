@@ -215,7 +215,7 @@ func (r Routes) View() string {
 		}
 	}
 	lines := []string{mutedStyle.Render(fmt.Sprintf("%d routes · %d to sync · local folder %s", len(r.routes), pending, r.dir)), ""}
-	start, end := window(r.cursor, len(r.routes), ridesRows)
+	start, end := window(r.cursor, len(r.routes), listRows)
 	for i := start; i < end; i++ {
 		rt := r.routes[i]
 		size := max(rt.local, rt.onDev)

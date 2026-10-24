@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -48,4 +49,17 @@ func frame(title, body, help string) string {
 func window(cursor, n, rows int) (start, end int) {
 	start = min(max(cursor-rows/2, 0), max(n-rows, 0))
 	return start, min(start+rows, n)
+}
+
+// listRows is how many rows long lists show at once.
+const listRows = 15
+
+func humanSize(n int64) string {
+	switch {
+	case n >= 1<<20:
+		return fmt.Sprintf("%.1f MB", float64(n)/(1<<20))
+	case n >= 1<<10:
+		return fmt.Sprintf("%d KB", n/(1<<10))
+	}
+	return fmt.Sprintf("%d B", n)
 }
