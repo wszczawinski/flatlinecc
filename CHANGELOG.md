@@ -1,3 +1,16 @@
+## [0.4.0] - 2026-10-24
+
+### 🚀 Features
+
+- Copy new rides from the device and sync routes both ways
+
+### 📚 Documentation
+
+- Rides and routes, device file paths, all milestones done
+
+### 🚜 Refactor
+
+- *(tui)* Share list scrolling between screens
 ## [0.3.0] - 2026-10-24
 
 ### 🚀 Features
