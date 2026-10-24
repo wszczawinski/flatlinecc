@@ -113,6 +113,35 @@ Page type 39 and field types 425–429 are newer than Intyre's tables (which end
 
 Confirmed on device (workout page 0x1d): speed, distance, clock, ride time, avg speed, max speed, ascent, grade, elevation, descent. So 158 shows as "speed" and 425 is grade.
 
+## Settings
+
+Plain values in the live config, one entry per profile plus the active one (no `cfgProfileId`). Changing a setting on the device updates only the active entry, so flatlinecc does the same. Names from Intyre's cfg reader.
+
+### Sounds (`<boolean>`)
+
+| ID | Key | Notes |
+|---|---|---|
+| 8 | `BUZZ_WORKOUT` | workout beeps, probably start / pause / lap |
+| 9 | `BUZZ_NOTIF` | |
+| 10 | `BUZZ_NAV` | |
+| 11 | `BUZZ_MARIO` | meaning unknown |
+| 13–15 | `ALERT_PHONE` / `MSG` / `EMAIL` | phone alerts, need Bluetooth |
+| 18 | `MUTE` | |
+| 37 | `SEGMENTS_MUTED` | |
+| 45 | `PLANS_BUZZER` | |
+| 79 | `SOUNDS_CFG` | byte array, `[-1]` active, `[-1,124]` per profile; not decoded |
+
+### Display (`<int>`), mapped by changing each option on the device
+
+| ID | Key | Values |
+|---|---|---|
+| 0 | `BACKLIGHT` | 0 on, 1 5 sec, 2 off, 3 auto |
+| 4 | `LED_MODE` | 0 off, 1 speed, 5 power, 6 HR; 2–4 not offered in the device menu |
+
+Top LED toggles (`<boolean>`): 5 `TOP_LED_WORKOUT`, 6 `TOP_LED_NOTIF`, 7 `TOP_LED_NAV`.
+
+Other fields that change on their own: 41 `PAGE_DEFN` (probably the current page), 74 `BOLT_BATTERY_STATUS` (charging).
+
 ## Open questions
 
 - Header bytes
@@ -120,5 +149,6 @@ Confirmed on device (workout page 0x1d): speed, distance, clock, ride time, avg 
 - Why the type-39 page has index 0
 - Field types 425–429, page type 39
 - `PAGE_DEFN` (field 41)
+- `SOUNDS_CFG` (field 79), `LED_MODE` values 2–4
 
 Approach: change one thing on the device, take a new backup, diff.

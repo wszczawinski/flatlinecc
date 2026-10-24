@@ -11,7 +11,7 @@ I crashed with my ROAM and its Bluetooth stopped working. The device still recor
 Run `flatlinecc` and pick from a menu:
 
 - **Screens**: change data fields on each page, add or remove fields
-- **Sounds**: alert and buzzer settings
+- **Sounds**: mute and buzzer settings
 - **Rides**: copy new rides to a local folder
 - **Routes**: push new routes to the device
 - **Backup / restore**: device config
@@ -74,7 +74,7 @@ git push && git push --tags
 
 ## Status
 
-Work in progress. Changing fields on pages works; the rest of the menu is not built yet.
+Work in progress. Screens, Sounds, Backup / restore and Device info work; Rides and Routes are not built yet.
 
 ## Credits
 
