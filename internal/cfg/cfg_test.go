@@ -55,3 +55,18 @@ func TestRoundTripBackup(t *testing.T) {
 		})
 	}
 }
+
+// FuzzParse checks that anything Parse accepts encodes back to the same bytes.
+func FuzzParse(f *testing.F) {
+	f.Add([]byte{0x00, 0xff, 0xff, 0x01, 0x00, 0x34, 0x00, 0x01, 0x00, 'a', 0x00, 0x00})
+	f.Add([]byte{0x01, 0x00, 0x00, 0x01, 0x00, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00})
+	f.Fuzz(func(t *testing.T, in []byte) {
+		file, err := Parse(in)
+		if err != nil {
+			return
+		}
+		if out := file.Bytes(); !bytes.Equal(in, out) {
+			t.Fatalf("round trip mismatch\n in: % x\nout: % x", in, out)
+		}
+	})
+}

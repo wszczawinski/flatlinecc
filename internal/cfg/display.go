@@ -3,6 +3,7 @@ package cfg
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 )
 
 // DisplayCfgID is the DISPLAY_CFG field holding the page layout.
@@ -25,9 +26,13 @@ type Page struct {
 	Fields []uint16
 }
 
-func (p Page) ID() uint16  { return binary.LittleEndian.Uint16(p.Head[1:3]) }
+// ID returns the page ID from the head.
+func (p Page) ID() uint16 { return binary.LittleEndian.Uint16(p.Head[1:3]) }
+
+// Type returns the page type (workout, map, ...), see the fields package for names.
 func (p Page) Type() uint8 { return p.Head[5] }
 
+// ParseDisplay decodes DISPLAY_CFG data. Header and Head slices point into b.
 func ParseDisplay(b []byte) (*Display, error) {
 	r := reader{b: b}
 	d := &Display{Header: r.bytes(displayHeaderSize)}
@@ -47,14 +52,18 @@ func ParseDisplay(b []byte) (*Display, error) {
 	return d, nil
 }
 
-func (d *Display) Bytes() []byte {
+// Bytes encodes the layout. A page holds at most 255 fields.
+func (d *Display) Bytes() ([]byte, error) {
 	b := append([]byte{}, d.Header...)
-	for _, p := range d.Pages {
+	for i, p := range d.Pages {
+		if len(p.Fields) > math.MaxUint8 {
+			return nil, fmt.Errorf("page %d: %d fields, max %d", i, len(p.Fields), math.MaxUint8)
+		}
 		b = append(b, p.Head...)
 		b = append(b, uint8(len(p.Fields)))
 		for _, field := range p.Fields {
 			b = binary.LittleEndian.AppendUint16(b, field)
 		}
 	}
-	return b
+	return b, nil
 }

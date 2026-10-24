@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -9,7 +10,11 @@ import (
 	"github.com/wszczawinski/flatlinecc/internal/adb"
 )
 
-const pollInterval = 2 * time.Second
+const (
+	pollInterval = 2 * time.Second
+	adbTimeout   = 10 * time.Second // one read from the device
+	applyTimeout = 30 * time.Second // a whole apply: pull, push, verify, restart
+)
 
 type devicesMsg struct {
 	devices []adb.Device
@@ -19,7 +24,9 @@ type devicesMsg struct {
 type pollMsg struct{}
 
 func checkDevices() tea.Msg {
-	devices, err := adb.Devices()
+	ctx, cancel := context.WithTimeout(context.Background(), adbTimeout)
+	defer cancel()
+	devices, err := adb.Devices(ctx)
 	return devicesMsg{devices, err}
 }
 
@@ -52,6 +59,7 @@ var infoRows = []struct{ label, prop string }{
 	{"Build", "ro.build.display.id"},
 }
 
+// DeviceInfo shows firmware and system properties of the connected device.
 type DeviceInfo struct {
 	serial   string
 	props    map[string]string
@@ -60,17 +68,20 @@ type DeviceInfo struct {
 	loaded   bool
 }
 
+// NewDeviceInfo returns the device info screen for serial.
 func NewDeviceInfo(serial string) DeviceInfo {
 	return DeviceInfo{serial: serial}
 }
 
 func (d DeviceInfo) Init() tea.Cmd {
 	return func() tea.Msg {
-		props, err := adb.Props(d.serial)
+		ctx, cancel := context.WithTimeout(context.Background(), adbTimeout)
+		defer cancel()
+		props, err := adb.Props(ctx, d.serial)
 		if err != nil {
 			return propsMsg{err: err}
 		}
-		firmware, err := adb.PackageVersion(d.serial, boltApp)
+		firmware, err := adb.PackageVersion(ctx, d.serial, boltApp)
 		return propsMsg{props, firmware, err}
 	}
 }

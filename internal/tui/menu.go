@@ -16,6 +16,7 @@ var menuItems = []string{
 	"Settings",
 }
 
+// Menu is the main menu.
 type Menu struct {
 	cursor int
 }

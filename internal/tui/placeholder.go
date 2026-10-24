@@ -7,6 +7,7 @@ type Placeholder struct {
 	title string
 }
 
+// NewPlaceholder returns a placeholder titled title.
 func NewPlaceholder(title string) Placeholder {
 	return Placeholder{title: title}
 }

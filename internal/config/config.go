@@ -1,6 +1,8 @@
+// Package config loads and saves flatlinecc's settings file.
 package config
 
 import (
+	"bytes"
 	"errors"
 	"io/fs"
 	"os"
@@ -9,10 +11,12 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+// Config is the settings file.
 type Config struct {
 	DataDir string `toml:"data_dir"`
 }
 
+// Default returns the settings used when there is no file yet.
 func Default() Config {
 	return Config{DataDir: "./data"}
 }
@@ -39,18 +43,32 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
+// Save writes the config file. It writes a temp file and renames it, so a
+// failed write never leaves a truncated config behind.
 func Save(cfg Config) error {
 	path, err := Path()
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	var buf bytes.Buffer
+	if err := toml.NewEncoder(&buf).Encode(cfg); err != nil {
 		return err
 	}
-	f, err := os.Create(path)
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dir, "config-*.toml")
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	return toml.NewEncoder(f).Encode(cfg)
+	defer os.Remove(tmp.Name()) // no-op after a successful rename
+	if _, err := tmp.Write(buf.Bytes()); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
 }

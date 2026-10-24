@@ -22,7 +22,11 @@ func TestDisplayRoundTrip(t *testing.T) {
 	if len(d.Pages) != 2 || d.Pages[0].ID() != 0x1b || d.Pages[1].Type() != 3 || d.Pages[0].Fields[0] != 155 {
 		t.Fatalf("unexpected parse: %+v", d)
 	}
-	if out := d.Bytes(); !bytes.Equal(in, out) {
+	out, err := d.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(in, out) {
 		t.Fatalf("round trip mismatch\n in: % x\nout: % x", in, out)
 	}
 }
@@ -54,7 +58,11 @@ func TestDisplayRoundTripBackup(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if out := d.Bytes(); !bytes.Equal(field.Data, out) {
+			out, err := d.Bytes()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(field.Data, out) {
 				t.Fatalf("round trip mismatch: %d bytes in, %d out", len(field.Data), len(out))
 			}
 			t.Logf("header % x", d.Header)
@@ -63,4 +71,51 @@ func TestDisplayRoundTripBackup(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseDisplayErrors(t *testing.T) {
+	tests := map[string][]byte{
+		"short header":   {0x01, 0xc5},
+		"short head":     {0x01, 0xc5, 0x00, 0x07, 0x00, 0x07, 0x01, 0x1b},
+		"missing fields": {0x01, 0xc5, 0x00, 0x07, 0x00, 0x07, 0x01, 0x1b, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x00, 0xff, 0xff, 0x02, 0x9b},
+	}
+	for name, in := range tests {
+		t.Run(name, func(t *testing.T) {
+			if _, err := ParseDisplay(in); err == nil {
+				t.Fatal("expected error")
+			}
+		})
+	}
+}
+
+func TestDisplayBytesTooManyFields(t *testing.T) {
+	d := &Display{
+		Header: make([]byte, displayHeaderSize),
+		Pages:  []Page{{Head: make([]byte, pageHeadSize), Fields: make([]uint16, 256)}},
+	}
+	if _, err := d.Bytes(); err == nil {
+		t.Fatal("expected error for 256 fields")
+	}
+}
+
+// FuzzParseDisplay checks that anything ParseDisplay accepts encodes back to the same bytes.
+func FuzzParseDisplay(f *testing.F) {
+	f.Add([]byte{
+		0x01, 0xc5, 0x00, 0x07, 0x00, 0x07,
+		0x01, 0x1b, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x00, 0xff, 0xff,
+		0x01, 0x9b, 0x00,
+	})
+	f.Fuzz(func(t *testing.T, in []byte) {
+		d, err := ParseDisplay(in)
+		if err != nil {
+			return
+		}
+		out, err := d.Bytes()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(in, out) {
+			t.Fatalf("round trip mismatch\n in: % x\nout: % x", in, out)
+		}
+	})
 }

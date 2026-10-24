@@ -3,6 +3,7 @@ package prefs
 import (
 	"bytes"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/wszczawinski/flatlinecc/internal/cfg"
@@ -55,7 +56,11 @@ func TestRealFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := SetBytes(in, cfg.DisplayCfgID, d.Bytes())
+	data, err = d.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := SetBytes(in, cfg.DisplayCfgID, data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,4 +68,39 @@ func TestRealFile(t *testing.T) {
 		t.Fatal("round trip changed the file")
 	}
 	t.Logf("%d pages", len(d.Pages))
+}
+
+func entry(field int, value string) string {
+	return `<string name="{&quot;type&quot;:` + strconv.Itoa(field) + `,&quot;boltId&quot;:&quot;&quot;}">` + value
+}
+
+func TestBytesEdgeCases(t *testing.T) {
+	if got, err := Bytes([]byte(entry(7, "[]</string>")), 7); err != nil || got != nil {
+		t.Fatalf("empty array: got % x, %v", got, err)
+	}
+	for name, doc := range map[string]string{
+		"out of range": entry(7, "[128]</string>"),
+		"not a number": entry(7, "[1,x]</string>"),
+		"unterminated": entry(7, "[1,2"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := Bytes([]byte(doc), 7); err == nil {
+				t.Fatal("expected error")
+			}
+		})
+	}
+}
+
+func TestSetBytesSignedRoundTrip(t *testing.T) {
+	all := make([]byte, 256)
+	for i := range all {
+		all[i] = byte(i)
+	}
+	out, err := SetBytes([]byte(entry(7, "[]</string>")), 7, all)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := Bytes(out, 7); !bytes.Equal(got, all) {
+		t.Fatalf("round trip lost bytes")
+	}
 }

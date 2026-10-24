@@ -8,22 +8,19 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"time"
 )
 
+// ErrNotInstalled means the adb command isn't in PATH.
 var ErrNotInstalled = errors.New("adb not found in PATH")
 
-const timeout = 5 * time.Second
-
+// Device is one line of `adb devices -l`.
 type Device struct {
 	Serial string
 	State  string // device, unauthorized, offline, ...
 	Model  string
 }
 
-func run(args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+func run(ctx context.Context, args ...string) (string, error) {
 	out, err := exec.CommandContext(ctx, "adb", args...).Output()
 	if err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
@@ -39,26 +36,26 @@ func run(args ...string) (string, error) {
 }
 
 // Shell runs a command on the device and returns its output.
-func Shell(serial string, args ...string) (string, error) {
-	return run(append([]string{"-s", serial, "shell"}, args...)...)
+func Shell(ctx context.Context, serial string, args ...string) (string, error) {
+	return run(ctx, append([]string{"-s", serial, "shell"}, args...)...)
 }
 
 // Pull reads a file from the device.
-func Pull(serial, remote string) ([]byte, error) {
+func Pull(ctx context.Context, serial, remote string) ([]byte, error) {
 	tmp, err := os.CreateTemp("", "flatlinecc-*")
 	if err != nil {
 		return nil, err
 	}
 	tmp.Close()
 	defer os.Remove(tmp.Name())
-	if _, err := run("-s", serial, "pull", remote, tmp.Name()); err != nil {
+	if _, err := run(ctx, "-s", serial, "pull", remote, tmp.Name()); err != nil {
 		return nil, err
 	}
 	return os.ReadFile(tmp.Name())
 }
 
 // Push writes data to a file on the device.
-func Push(serial string, data []byte, remote string) error {
+func Push(ctx context.Context, serial string, data []byte, remote string) error {
 	tmp, err := os.CreateTemp("", "flatlinecc-*")
 	if err != nil {
 		return err
@@ -71,16 +68,38 @@ func Push(serial string, data []byte, remote string) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	_, err = run("-s", serial, "push", tmp.Name(), remote)
+	_, err = run(ctx, "-s", serial, "push", tmp.Name(), remote)
 	return err
 }
 
 // Devices lists attached devices (adb devices -l).
-func Devices() ([]Device, error) {
-	out, err := run("devices", "-l")
+func Devices(ctx context.Context) ([]Device, error) {
+	out, err := run(ctx, "devices", "-l")
 	if err != nil {
 		return nil, err
 	}
+	return parseDevices(out), nil
+}
+
+// PackageVersion returns an installed app's versionName (adb shell dumpsys package).
+func PackageVersion(ctx context.Context, serial, pkg string) (string, error) {
+	out, err := Shell(ctx, serial, "dumpsys", "package", pkg)
+	if err != nil {
+		return "", err
+	}
+	return parseVersion(out), nil
+}
+
+// Props returns all system properties of a device (adb shell getprop).
+func Props(ctx context.Context, serial string) (map[string]string, error) {
+	out, err := Shell(ctx, serial, "getprop")
+	if err != nil {
+		return nil, err
+	}
+	return parseProps(out), nil
+}
+
+func parseDevices(out string) []Device {
 	var devices []Device
 	for line := range strings.SplitSeq(out, "\n") {
 		if strings.HasPrefix(line, "List of devices") || strings.HasPrefix(line, "*") {
@@ -98,29 +117,19 @@ func Devices() ([]Device, error) {
 		}
 		devices = append(devices, d)
 	}
-	return devices, nil
+	return devices
 }
 
-// PackageVersion returns an installed app's versionName (adb shell dumpsys package).
-func PackageVersion(serial, pkg string) (string, error) {
-	out, err := run("-s", serial, "shell", "dumpsys", "package", pkg)
-	if err != nil {
-		return "", err
-	}
+func parseVersion(out string) string {
 	for line := range strings.SplitSeq(out, "\n") {
 		if version, ok := strings.CutPrefix(strings.TrimSpace(line), "versionName="); ok {
-			return version, nil
+			return version
 		}
 	}
-	return "", nil
+	return ""
 }
 
-// Props returns all system properties of a device (adb shell getprop).
-func Props(serial string) (map[string]string, error) {
-	out, err := run("-s", serial, "shell", "getprop")
-	if err != nil {
-		return nil, err
-	}
+func parseProps(out string) map[string]string {
 	props := map[string]string{}
 	for line := range strings.SplitSeq(out, "\n") {
 		// [ro.product.model]: [ROAM]
@@ -130,5 +139,5 @@ func Props(serial string) (map[string]string, error) {
 		}
 		props[strings.TrimPrefix(key, "[")] = strings.TrimSuffix(value, "]")
 	}
-	return props, nil
+	return props
 }

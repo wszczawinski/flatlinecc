@@ -9,12 +9,14 @@ import (
 	"github.com/wszczawinski/flatlinecc/internal/config"
 )
 
+// Settings edits the local data folder.
 type Settings struct {
 	cfg    config.Config
 	input  textinput.Model
 	status string
 }
 
+// NewSettings returns the settings screen for cfg.
 func NewSettings(cfg config.Config) Settings {
 	input := textinput.New()
 	input.SetValue(cfg.DataDir)

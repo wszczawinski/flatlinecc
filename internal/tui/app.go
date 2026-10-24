@@ -32,10 +32,12 @@ type App struct {
 	devices []adb.Device
 	adbErr  error
 	checked bool
+	backup  backup
 	width   int
 	height  int
 }
 
+// New returns the root model for tea.NewProgram.
 func New(cfg config.Config) App {
 	return App{cfg: cfg}
 }
@@ -47,6 +49,10 @@ func (a App) Init() tea.Cmd {
 func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if a.busy() {
+			// Quitting mid-apply could leave a half-written config on the device.
+			break
+		}
 		if msg.String() == "ctrl+c" {
 			return a, tea.Quit
 		}
@@ -55,14 +61,31 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 	case devicesMsg:
 		a.devices, a.adbErr, a.checked = msg.devices, msg.err, true
+		if d := a.connected(); d != nil && !a.backup.started {
+			a.backup.started = true
+			return a, tea.Batch(poll(), backupConfig(d.Serial, a.cfg.DataDir))
+		}
 		return a, poll()
+	case backupMsg:
+		a.backup.path, a.backup.err, a.backup.done = msg.path, msg.err, true
+		return a, nil
+	case keepBackupMsg:
+		a.backup.keep = true
+		return a, nil
 	case pollMsg:
 		return a, checkDevices
 	}
 
 	if a.connected() == nil {
-		if key, ok := msg.(tea.KeyMsg); ok && key.String() == "q" {
+		key, ok := msg.(tea.KeyMsg)
+		switch {
+		case ok && key.String() == "q" && !a.busy():
 			return a, tea.Quit
+		case !ok && a.screen != nil:
+			// Deliver results of work started before the device went away.
+			var cmd tea.Cmd
+			a.screen, cmd = a.screen.Update(msg)
+			return a, cmd
 		}
 		return a, nil
 	}
@@ -101,7 +124,7 @@ func (a App) View() string {
 		body = a.screen.View()
 	}
 	return lipgloss.JoinVertical(lipgloss.Left,
-		statusStyle.Render(statusLine(device)),
+		statusStyle.Render(statusLine(device)+"  "+a.backup.status()),
 		body,
 	)
 }
@@ -109,13 +132,32 @@ func (a App) View() string {
 func (a App) screenFor(item string) tea.Model {
 	switch item {
 	case "Screens":
-		return NewScreens(a.connected().Serial)
+		return NewScreens(a.connected().Serial, a.SessionBackup() != "")
 	case "Settings":
 		return NewSettings(a.cfg)
 	case "Device info":
 		return NewDeviceInfo(a.connected().Serial)
 	}
 	return NewPlaceholder(item)
+}
+
+// SessionBackup returns the session backup's path, or "" if none was saved.
+func (a App) SessionBackup() string {
+	if a.backup.err != nil {
+		return ""
+	}
+	return a.backup.path
+}
+
+// KeepBackup reports whether the session backup must stay after quit.
+func (a App) KeepBackup() bool {
+	return a.backup.keep
+}
+
+// busy reports whether the open screen is writing to the device.
+func (a App) busy() bool {
+	b, ok := a.screen.(interface{ Busy() bool })
+	return ok && b.Busy()
 }
 
 // connected returns the first ready device, or nil.

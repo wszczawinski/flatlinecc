@@ -7,11 +7,13 @@ import (
 	"io"
 )
 
+// Field is one entry of a .cfg file.
 type Field struct {
 	ID   uint32
 	Data []byte
 }
 
+// File is a decoded .cfg file.
 type File struct {
 	Version   uint8 // 0: u16 field IDs, 1: u32 field IDs
 	ProfileID uint16

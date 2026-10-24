@@ -3,6 +3,7 @@ package wahoo
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -13,55 +14,62 @@ import (
 )
 
 const (
-	App        = "com.wahoofitness.bolt"
+	// App is the Wahoo app package on the device.
+	App = "com.wahoofitness.bolt"
+	// ConfigPath is the app's live config (SharedPreferences).
 	ConfigPath = "/data/data/com.wahoofitness.bolt/shared_prefs/BCfgManager-Bolt.xml"
 )
 
 // PullConfig reads the live config.
-func PullConfig(serial string) ([]byte, error) {
-	return adb.Pull(serial, ConfigPath)
+func PullConfig(ctx context.Context, serial string) ([]byte, error) {
+	return adb.Pull(ctx, serial, ConfigPath)
 }
 
-// ApplyConfig saves the current config to backupDir, writes doc in its place
-// and restarts the app so it loads it. It returns the backup's path.
-func ApplyConfig(serial string, doc []byte, backupDir string) (string, error) {
-	current, err := adb.Pull(serial, ConfigPath)
+// BackupConfig saves the live config to backupDir and returns the backup's path.
+func BackupConfig(ctx context.Context, serial, backupDir string) (string, error) {
+	current, err := adb.Pull(ctx, serial, ConfigPath)
 	if err != nil {
 		return "", err
 	}
-	owner, err := adb.Shell(serial, "stat", "-c", "%u:%g", ConfigPath)
-	if err != nil {
-		return "", err
-	}
+	return saveBackup(current, backupDir)
+}
 
+func saveBackup(doc []byte, backupDir string) (string, error) {
 	if err := os.MkdirAll(backupDir, 0o755); err != nil {
 		return "", err
 	}
 	backup := filepath.Join(backupDir, "BCfgManager-Bolt-"+time.Now().Format("20060102-150405")+".xml")
-	if err := os.WriteFile(backup, current, 0o644); err != nil {
-		return "", err
+	return backup, os.WriteFile(backup, doc, 0o644)
+}
+
+// ApplyConfig writes doc in place of the live config and restarts the app so
+// it loads it. Back up first with BackupConfig.
+func ApplyConfig(ctx context.Context, serial string, doc []byte) error {
+	owner, err := adb.Shell(ctx, serial, "stat", "-c", "%u:%g", ConfigPath)
+	if err != nil {
+		return err
 	}
 
-	if err := adb.Push(serial, doc, ConfigPath); err != nil {
-		return backup, err
+	if err := adb.Push(ctx, serial, doc, ConfigPath); err != nil {
+		return err
 	}
-	if _, err := adb.Shell(serial, "chown", strings.TrimSpace(owner), ConfigPath); err != nil {
-		return backup, err
+	if _, err := adb.Shell(ctx, serial, "chown", strings.TrimSpace(owner), ConfigPath); err != nil {
+		return err
 	}
-	if _, err := adb.Shell(serial, "chmod", "660", ConfigPath); err != nil {
-		return backup, err
+	if _, err := adb.Shell(ctx, serial, "chmod", "660", ConfigPath); err != nil {
+		return err
 	}
 
 	// Verify before the restart: the app rewrites the file when it starts.
-	written, err := adb.Pull(serial, ConfigPath)
+	written, err := adb.Pull(ctx, serial, ConfigPath)
 	if err != nil {
-		return backup, err
+		return err
 	}
 	if !bytes.Equal(written, doc) {
-		return backup, errors.New("config changed on the device before restart, try again")
+		return errors.New("config changed on the device before restart, try again")
 	}
 
 	// The launcher restarts the app right away and it reads the new config.
-	_, err = adb.Shell(serial, "am", "force-stop", App)
-	return backup, err
+	_, err = adb.Shell(ctx, serial, "am", "force-stop", App)
+	return err
 }

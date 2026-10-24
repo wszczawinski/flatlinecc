@@ -16,8 +16,16 @@ func main() {
 		fmt.Fprintln(os.Stderr, "config:", err)
 		os.Exit(1)
 	}
-	if _, err := tea.NewProgram(tui.New(cfg), tea.WithAltScreen()).Run(); err != nil {
+	m, err := tea.NewProgram(tui.New(cfg), tea.WithAltScreen()).Run()
+	if err != nil {
+		// Keep the session backup: something went wrong.
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+	app := m.(tui.App)
+	if path := app.SessionBackup(); path != "" && !app.KeepBackup() {
+		if err := os.Remove(path); err != nil {
+			fmt.Fprintln(os.Stderr, "remove session backup:", err)
+		}
 	}
 }
