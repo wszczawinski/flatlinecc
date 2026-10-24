@@ -68,6 +68,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, poll()
 	case backupMsg:
 		a.backup.path, a.backup.err, a.backup.done = msg.path, msg.err, true
+		if a.screen != nil {
+			// A screen opened before the backup finished can now apply.
+			var cmd tea.Cmd
+			a.screen, cmd = a.screen.Update(msg)
+			return a, cmd
+		}
 		return a, nil
 	case keepBackupMsg:
 		a.backup.keep = true
@@ -146,7 +152,7 @@ func (a App) screenFor(item string) tea.Model {
 	case "Device info":
 		return NewDeviceInfo(a.connected().Serial)
 	}
-	return NewPlaceholder(item)
+	panic("no screen for menu item " + item)
 }
 
 // SessionBackup returns the session backup's path, or "" if none was saved.

@@ -63,6 +63,11 @@ func (b Backups) Busy() bool {
 
 func (b Backups) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case backupMsg:
+		if msg.err == nil {
+			b.session = msg.path
+			b.entries, b.err = listBackups(b.dataDir)
+		}
 	case manualBackupMsg:
 		b.working = false
 		b.status = selectedStyle.Render("Backup saved")

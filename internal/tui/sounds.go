@@ -75,6 +75,8 @@ func (s Sounds) Busy() bool {
 
 func (s Sounds) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case backupMsg:
+		s.backedUp = msg.err == nil
 	case soundsMsg:
 		s.err, s.orig, s.values = msg.err, msg.values, slices.Clone(msg.values)
 	case appliedMsg:

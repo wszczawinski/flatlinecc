@@ -81,6 +81,8 @@ func (s Screens) Busy() bool {
 
 func (s Screens) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case backupMsg:
+		s.backedUp = msg.err == nil
 	case screensMsg:
 		s.base, s.display, s.err, s.orig = msg.base, msg.display, msg.err, nil
 		if s.display != nil {
