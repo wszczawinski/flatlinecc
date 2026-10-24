@@ -136,18 +136,24 @@ func (s Sounds) updateConfirm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
-// apply writes the changed toggles into the live config.
+// apply writes the changed toggles into the live config. Unchanged ones are
+// left alone, so settings changed on the device meanwhile are kept.
 func (s Sounds) apply() tea.Cmd {
-	values := slices.Clone(s.values)
-	return applyEdit(s.serial, func(doc []byte) ([]byte, error) {
-		var err error
-		for i, f := range soundFields {
-			if doc, err = prefs.SetBool(doc, f.id, values[i]); err != nil {
-				return nil, err
-			}
+	s.values = slices.Clone(s.values) // later toggles must not leak into this apply
+	return applyEdit(s.serial, s.edit)
+}
+
+func (s Sounds) edit(doc []byte) ([]byte, error) {
+	var err error
+	for i, f := range soundFields {
+		if s.values[i] == s.orig[i] {
+			continue
 		}
-		return doc, nil
-	})
+		if doc, err = prefs.SetBool(doc, f.id, s.values[i]); err != nil {
+			return nil, err
+		}
+	}
+	return doc, nil
 }
 
 func (s Sounds) View() string {

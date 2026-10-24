@@ -1,12 +1,15 @@
 package tui
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/wszczawinski/flatlinecc/internal/cfg"
+	"github.com/wszczawinski/flatlinecc/internal/prefs"
 )
 
 func page(typ uint8, fields ...uint16) cfg.Page {
@@ -249,5 +252,28 @@ func TestSoundsToggleAndApplyGuard(t *testing.T) {
 	}
 	if s = pressSounds(s, "esc", "enter"); len(s.changes()) != 0 {
 		t.Fatal("toggling back still shows a change")
+	}
+}
+
+func TestSoundsEditOnlyChanged(t *testing.T) {
+	values := make([]bool, len(soundFields))
+	s := loadedSounds(values...)
+	s.values[1] = true // workout buzzer (8)
+
+	// on the device, mute (18) was turned on after the screen opened
+	var doc strings.Builder
+	doc.WriteString("<map>\n")
+	for _, f := range soundFields {
+		fmt.Fprintf(&doc, `<boolean name="{&quot;type&quot;:%d,&quot;boltId&quot;:&quot;&quot;}" value="%t" />`+"\n", f.id, f.id == 18)
+	}
+	out, err := s.edit([]byte(doc.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := prefs.Bool(out, 8); !v {
+		t.Fatal("changed toggle not written")
+	}
+	if v, _ := prefs.Bool(out, 18); !v {
+		t.Fatal("device-side mute was overwritten")
 	}
 }
