@@ -133,6 +133,8 @@ func (a App) screenFor(item string) tea.Model {
 	switch item {
 	case "Screens":
 		return NewScreens(a.connected().Serial, a.SessionBackup() != "")
+	case "Sounds":
+		return NewSounds(a.connected().Serial, a.SessionBackup() != "")
 	case "Settings":
 		return NewSettings(a.cfg)
 	case "Device info":

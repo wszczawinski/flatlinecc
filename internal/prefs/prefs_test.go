@@ -104,3 +104,26 @@ func TestSetBytesSignedRoundTrip(t *testing.T) {
 		t.Fatalf("round trip lost bytes")
 	}
 }
+
+func TestBool(t *testing.T) {
+	doc := []byte(`<map>
+    <boolean name="{&quot;type&quot;:18,&quot;boltId&quot;:&quot;&quot;,&quot;cfgProfileId&quot;:-1}" value="true" />
+    <boolean name="{&quot;type&quot;:18,&quot;boltId&quot;:&quot;&quot;}" value="false" />
+</map>`)
+	if v, err := Bool(doc, 18); err != nil || v {
+		t.Fatalf("got %v, %v; want false (the active value, not the profile's)", v, err)
+	}
+	out, err := SetBool(doc, 18, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := Bool(out, 18); !v {
+		t.Fatal("SetBool did not change the active value")
+	}
+	if !bytes.Contains(out, []byte(`-1}" value="true"`)) || bytes.Count(out, []byte("true")) != 2 {
+		t.Fatalf("profile value changed:\n%s", out)
+	}
+	if _, err := Bool(doc, 99); err == nil {
+		t.Fatal("expected error for missing field")
+	}
+}

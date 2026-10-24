@@ -26,11 +26,6 @@ type screensMsg struct {
 	err     error
 }
 
-type appliedMsg struct{ err error }
-
-// keepBackupMsg tells the app to keep the session backup on quit.
-type keepBackupMsg struct{}
-
 // Screens lists the data pages from the live config; enter opens a page's fields.
 type Screens struct {
 	serial   string
@@ -96,11 +91,10 @@ func (s Screens) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case appliedMsg:
 		s.applying = false
-		if msg.err != nil {
-			s.status = errorStyle.Render("Apply failed: " + msg.err.Error())
-			return s, func() tea.Msg { return keepBackupMsg{} }
+		var cmd tea.Cmd
+		if s.status, cmd = applyResult(msg); cmd != nil {
+			return s, cmd
 		}
-		s.status = selectedStyle.Render("Applied")
 		return s, s.Init()
 	case tea.KeyMsg:
 		if s.display == nil {
@@ -170,28 +164,23 @@ func (s Screens) updateConfirm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
-// apply writes the edited layout into a fresh copy of the live config, so
-// anything the device saved since Screens opened is kept.
+// apply writes the edited layout into the live config, unless the pages
+// changed on the device since Screens opened.
 func (s Screens) apply() tea.Cmd {
 	data, err := s.display.Bytes()
-	return func() tea.Msg {
+	return applyEdit(s.serial, func(doc []byte) ([]byte, error) {
 		if err != nil {
-			return appliedMsg{err}
+			return nil, err
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), applyTimeout)
-		defer cancel()
-		doc, current, err := pullDisplay(ctx, s.serial)
+		current, err := prefs.Bytes(doc, cfg.DisplayCfgID)
 		if err != nil {
-			return appliedMsg{err}
+			return nil, err
 		}
 		if !bytes.Equal(current, s.base) {
-			return appliedMsg{errors.New("pages changed on the device, reopen Screens")}
+			return nil, errors.New("pages changed on the device, reopen Screens")
 		}
-		if doc, err = prefs.SetBytes(doc, cfg.DisplayCfgID, data); err != nil {
-			return appliedMsg{err}
-		}
-		return appliedMsg{wahoo.ApplyConfig(ctx, s.serial, doc)}
-	}
+		return prefs.SetBytes(doc, cfg.DisplayCfgID, data)
+	})
 }
 
 func (s Screens) updatePicker(key tea.KeyMsg) (tea.Model, tea.Cmd) {

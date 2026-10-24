@@ -220,3 +220,34 @@ func TestMapLimits(t *testing.T) {
 		t.Fatalf("map went below 2: %v", s.page().Fields)
 	}
 }
+
+func loadedSounds(values ...bool) Sounds {
+	m, _ := NewSounds("serial", true).Update(soundsMsg{values: values})
+	return m.(Sounds)
+}
+
+func pressSounds(s Sounds, keys ...string) Sounds {
+	for _, k := range keys {
+		m, _ := s.Update(key(k))
+		s = m.(Sounds)
+	}
+	return s
+}
+
+func TestSoundsToggleAndApplyGuard(t *testing.T) {
+	values := make([]bool, len(soundFields))
+	s := pressSounds(loadedSounds(values...), "a")
+	if s.confirm {
+		t.Fatal("confirm opened without changes")
+	}
+	s = pressSounds(s, "down", "enter")
+	if !s.values[1] || s.orig[1] || len(s.changes()) != 1 {
+		t.Fatalf("toggle: values %v, changes %v", s.values, s.changes())
+	}
+	if s = pressSounds(s, "a"); !s.confirm {
+		t.Fatal("confirm did not open")
+	}
+	if s = pressSounds(s, "esc", "enter"); len(s.changes()) != 0 {
+		t.Fatal("toggling back still shows a change")
+	}
+}
