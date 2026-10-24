@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -24,7 +26,7 @@ func main() {
 	}
 	app := m.(tui.App)
 	if path := app.SessionBackup(); path != "" && !app.KeepBackup() {
-		if err := os.Remove(path); err != nil {
+		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			fmt.Fprintln(os.Stderr, "remove session backup:", err)
 		}
 	}
