@@ -45,6 +45,7 @@ type Screens struct {
 	open     bool // showing the selected page's fields
 	slot     int  // selected field on the open page
 	picking  bool // choosing a field for the selected slot
+	adding   bool // the picked field goes in a new slot below the selected one
 	picker   Picker
 	confirm  bool // reviewing changes before apply
 	applying bool
@@ -200,7 +201,13 @@ func (s Screens) updatePicker(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return s, nil
 	case "enter":
 		if id, ok := s.picker.Selected(); ok {
-			s.page().Fields[s.slot] = id
+			p := s.page()
+			if s.adding {
+				s.slot = min(s.slot+1, len(p.Fields))
+				p.Fields = slices.Insert(p.Fields, s.slot, id)
+			} else {
+				p.Fields[s.slot] = id
+			}
 		}
 		s.picking = false
 		return s, nil
@@ -210,8 +217,54 @@ func (s Screens) updatePicker(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return s, cmd
 }
 
+// minFields is the fewest fields a page type may keep; other pages need 1.
+var minFields = map[uint8]int{0: 3, 2: 3, 39: 3, 3: 2} // workout, elevation, climb, map
+
+// maxFields is the most fields a page type may hold, from the stock layout;
+// more per page is untested. Unknown types keep what the device has.
+var maxFields = map[uint8]int{
+	0:  10, // workout
+	1:  9,  // lap
+	2:  6,  // elevation
+	3:  3,  // map
+	4:  4,  // KICKR
+	8:  7,  // segment
+	15: 6,  // planned workout
+	39: 5,  // climb
+}
+
+// fieldLimits returns how many fields page i may hold.
+func (s Screens) fieldLimits(i int) (lo, hi int) {
+	t := s.display.Pages[i].Type()
+	lo, hi = 1, len(s.orig[i])
+	if n, ok := minFields[t]; ok {
+		lo = n
+	}
+	if n, ok := maxFields[t]; ok {
+		hi = n
+	}
+	return lo, hi
+}
+
+// openPicker opens the field picker on the selected slot. When adding, the
+// pick goes in a new slot below it.
+func (s Screens) openPicker(adding bool) (Screens, tea.Cmd) {
+	p := s.page()
+	s.picking, s.adding, s.picker = true, adding, NewPicker(p.Fields[s.slot], p.Type())
+	return s, textinput.Blink
+}
+
 func (s Screens) updatePage(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	s.status = ""
+	p := s.page()
+	if len(p.Fields) == 0 {
+		// Nothing to select; a page the device has empty can't grow either.
+		if key.String() == "esc" {
+			s.open = false
+		}
+		return s, nil
+	}
+	lo, hi := s.fieldLimits(s.order[s.cursor])
 	switch key.String() {
 	case "a":
 		s = s.startApply()
@@ -222,15 +275,34 @@ func (s Screens) updatePage(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			s.slot--
 		}
 	case "down", "j":
-		if s.slot < len(s.page().Fields)-1 {
+		if s.slot < len(p.Fields)-1 {
+			s.slot++
+		}
+	case "shift+up", "K":
+		if s.slot > 0 {
+			p.Fields[s.slot-1], p.Fields[s.slot] = p.Fields[s.slot], p.Fields[s.slot-1]
+			s.slot--
+		}
+	case "shift+down", "J":
+		if s.slot < len(p.Fields)-1 {
+			p.Fields[s.slot+1], p.Fields[s.slot] = p.Fields[s.slot], p.Fields[s.slot+1]
 			s.slot++
 		}
 	case "enter":
-		if len(s.page().Fields) == 0 {
+		return s.openPicker(false)
+	case "n":
+		if len(p.Fields) >= hi {
+			s.status = mutedStyle.Render(fmt.Sprintf("Max %d fields on this page", hi))
 			return s, nil
 		}
-		s.picking, s.picker = true, NewPicker(s.page().Fields[s.slot], s.page().Type())
-		return s, textinput.Blink
+		return s.openPicker(true)
+	case "d":
+		if len(p.Fields) <= lo {
+			s.status = mutedStyle.Render(fmt.Sprintf("Min %d fields on this page", lo))
+			return s, nil
+		}
+		p.Fields = slices.Delete(p.Fields, s.slot, s.slot+1)
+		s.slot = min(s.slot, len(p.Fields)-1)
 	}
 	return s, nil
 }
@@ -247,7 +319,11 @@ func (s Screens) View() string {
 		body := strings.Join(s.changes(), "\n") + "\n\n" + mutedStyle.Render("The Wahoo app restarts to load the new layout.")
 		return frame(crumbs("Screens", "Apply"), body, "y apply · esc cancel")
 	case s.picking:
-		title := crumbs("Screens", fields.PageName(s.page().Type()), fmt.Sprintf("Field %d", s.slot+1))
+		slot := fmt.Sprintf("Field %d", s.slot+1)
+		if s.adding {
+			slot = "New field"
+		}
+		title := crumbs("Screens", fields.PageName(s.page().Type()), slot)
 		return frame(title, s.picker.View(), "type to filter · ↑/↓ move · enter pick · esc cancel")
 	case s.open:
 		p := s.page()
@@ -255,7 +331,8 @@ func (s Screens) View() string {
 		for i, f := range p.Fields {
 			lines[i] = listLine(fmt.Sprintf("%2d. %s%s", i+1, fields.Name(f), s.mark(s.order[s.cursor], i)), i == s.slot)
 		}
-		return frame(crumbs("Screens", fields.PageName(p.Type())), s.withStatus(lines), "↑/↓ move · enter change · a apply · esc back")
+		help := "↑/↓ move · shift+↑/↓ reorder · enter change\n\nn add · d delete · a apply · esc back"
+		return frame(crumbs("Screens", fields.PageName(p.Type())), s.withStatus(lines), help)
 	}
 	lines := make([]string, len(s.order))
 	for row, i := range s.order {
@@ -275,16 +352,25 @@ func (s Screens) withStatus(lines []string) string {
 	return body
 }
 
-// changes describes each slot that differs from the device, in list order.
+// changes describes each page that differs from the device, in list order.
 func (s Screens) changes() []string {
+	names := func(ids []uint16) string {
+		out := make([]string, len(ids))
+		for i, id := range ids {
+			out[i] = fields.Name(id)
+		}
+		return strings.Join(out, ", ")
+	}
 	var out []string
 	for _, i := range s.order {
 		p := s.display.Pages[i]
-		for slot, f := range p.Fields {
-			if was := s.orig[i][slot]; f != was {
-				out = append(out, fmt.Sprintf("%s  %d. %s → %s", fields.PageName(p.Type()), slot+1, fields.Name(was), fields.Name(f)))
-			}
+		if slices.Equal(p.Fields, s.orig[i]) {
+			continue
 		}
+		out = append(out,
+			labelStyle.Render(fields.PageName(p.Type())),
+			mutedStyle.Render("  was  "+names(s.orig[i])),
+			"  now  "+names(p.Fields))
 	}
 	return out
 }
@@ -297,7 +383,8 @@ func (s Screens) page() *cfg.Page {
 // mark returns " *" if the slot (or any slot when slot is -1) on page i differs from the device.
 func (s Screens) mark(i, slot int) string {
 	cur, orig := s.display.Pages[i].Fields, s.orig[i]
-	changed := slot < 0 && !slices.Equal(cur, orig) || slot >= 0 && cur[slot] != orig[slot]
+	changed := slot < 0 && !slices.Equal(cur, orig) ||
+		slot >= 0 && (slot >= len(orig) || cur[slot] != orig[slot])
 	if changed {
 		return " *"
 	}

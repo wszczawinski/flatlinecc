@@ -68,8 +68,8 @@ func TestPickStagesChange(t *testing.T) {
 	if s.mark(0, 1) != " *" || s.mark(0, 0) != "" || s.mark(0, -1) != " *" {
 		t.Fatal("marks wrong")
 	}
-	if got := s.changes(); len(got) != 1 {
-		t.Fatalf("changes %v", got)
+	if got := s.changes(); len(got) == 0 {
+		t.Fatal("no changes listed")
 	}
 	if !slices.Equal(s.orig[0], []uint16{158, 10}) {
 		t.Fatalf("original changed: %v", s.orig[0])
@@ -136,5 +136,87 @@ func TestEmptyPageEnter(t *testing.T) {
 	s := press(loaded(page(0)), "enter", "enter")
 	if s.picking {
 		t.Fatal("picker opened on a page with no fields")
+	}
+}
+
+func TestAddDeleteLimits(t *testing.T) {
+	// workout: min 3, max 10
+	s := loaded(page(0, 158, 10, 30, 32, 2, 5, 40, 425, 45, 41))
+
+	s = press(s, "enter", "n")
+	if s.picking || s.status == "" {
+		t.Fatal("add allowed past 10 fields")
+	}
+
+	s = press(s, "d", "d", "d", "d", "d", "d", "d")
+	if got := s.page().Fields; !slices.Equal(got, []uint16{425, 45, 41}) {
+		t.Fatalf("after deletes: %v", got)
+	}
+	if s = press(s, "d"); len(s.page().Fields) != 3 || s.status == "" {
+		t.Fatal("delete allowed below the workout minimum")
+	}
+
+	// add below slot 1: picker starts on 425, pick it as-is
+	s = press(s, "n", "enter")
+	if got := s.page().Fields; !slices.Equal(got, []uint16{425, 425, 45, 41}) || s.slot != 1 {
+		t.Fatalf("after add: %v, slot %d", got, s.slot)
+	}
+	if s.mark(0, 0) != " *" {
+		t.Fatal("changed slot not marked")
+	}
+}
+
+func TestMaxIsFixedAfterApply(t *testing.T) {
+	// the device already has 9 workout fields after an earlier apply
+	s := press(loaded(page(0, 158, 10, 30, 32, 2, 5, 40, 425, 45)), "enter", "n")
+	if !s.picking {
+		t.Fatal("could not add back to 10")
+	}
+}
+
+func TestAddEscCancels(t *testing.T) {
+	s := loaded(page(0, 158, 10, 30, 32))
+	s = press(s, "enter", "d", "n", "esc")
+	if len(s.page().Fields) != 3 {
+		t.Fatalf("esc still added: %v", s.page().Fields)
+	}
+}
+
+func TestReorder(t *testing.T) {
+	s := press(loaded(page(3, 158, 21)), "enter", "J")
+	if got := s.page().Fields; !slices.Equal(got, []uint16{21, 158}) || s.slot != 1 {
+		t.Fatalf("after move down: %v, slot %d", got, s.slot)
+	}
+	s = press(s, "K")
+	if got := s.page().Fields; !slices.Equal(got, []uint16{158, 21}) || s.slot != 0 {
+		t.Fatalf("after move up: %v, slot %d", got, s.slot)
+	}
+	if len(s.changes()) != 0 {
+		t.Fatal("moving back still shows a change")
+	}
+}
+
+func TestOtherPagesMinOne(t *testing.T) {
+	s := press(loaded(page(8, 238, 239)), "enter", "d")
+	if len(s.page().Fields) != 1 {
+		t.Fatal("segment page should go down to 1 field")
+	}
+	if s = press(s, "d"); len(s.page().Fields) != 1 {
+		t.Fatal("deleted the last field")
+	}
+}
+
+func TestMapLimits(t *testing.T) {
+	// map: min 2, max 3 even though the device had 2
+	s := press(loaded(page(3, 158, 21)), "enter", "n", "enter")
+	if len(s.page().Fields) != 3 {
+		t.Fatalf("map should take a 3rd field: %v", s.page().Fields)
+	}
+	if s = press(s, "n"); s.picking {
+		t.Fatal("map took a 4th field")
+	}
+	s = press(s, "d", "d")
+	if len(s.page().Fields) != 2 {
+		t.Fatalf("map went below 2: %v", s.page().Fields)
 	}
 }
