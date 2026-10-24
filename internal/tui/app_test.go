@@ -67,3 +67,21 @@ func TestBackupReachesOpenScreen(t *testing.T) {
 		t.Fatal("screen opened before the backup still can't apply")
 	}
 }
+
+func TestBackupRetriesAfterFailure(t *testing.T) {
+	a := connectedApp(nil)
+	m, cmd := a.Update(devicesMsg{devices: a.devices})
+	a = m.(App)
+	if !a.backup.started || cmd == nil {
+		t.Fatal("backup not started on connect")
+	}
+	m, _ = a.Update(backupMsg{err: errors.New("device not ready")})
+	a = m.(App)
+	if a.backup.started {
+		t.Fatal("failed backup will not be retried")
+	}
+	m, _ = a.Update(devicesMsg{devices: a.devices})
+	if !m.(App).backup.started {
+		t.Fatal("next poll did not retry the backup")
+	}
+}

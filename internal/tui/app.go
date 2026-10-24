@@ -68,6 +68,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, poll()
 	case backupMsg:
 		a.backup.path, a.backup.err, a.backup.done = msg.path, msg.err, true
+		// Retry on the next poll: right after plugging in, the device may not
+		// be ready yet.
+		a.backup.started = msg.err == nil
 		if a.screen != nil {
 			// A screen opened before the backup finished can now apply.
 			var cmd tea.Cmd
