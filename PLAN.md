@@ -9,11 +9,13 @@ Bluetooth on the device is broken; everything goes over USB.
 
 ## UX
 - Run `flatlinecc` → full-screen menu, everything happens inside the TUI.
+- `flatlinecc -version` prints the version Go stamps from the git tag.
 
 ## v1 features
 1. **Edit screens**: drill down: pages → page fields → searchable field list
-   - change the field in a slot
-   - add / remove fields on a page
+   - change, add, remove and reorder fields
+   - min / max fields per page type (workout 3–10, elevation 3–6, climb 3–5, map 2–3)
+   - lap, KICKR, segment and planned workout fields are offered only on their own page
 2. **Sounds**: mute and buzzer toggles (`MUTE`, `BUZZ_*`). Phone alerts skipped (need Bluetooth); LEDs and backlight are set on the device
 3. **Backup / restore config**: manual copies of `BCfgManager-Bolt.xml`, kept in `backups/manual/` (restore via `elemnt_config.zip` doesn't work on current firmware)
 4. **Pull rides**: copy new `.fit` rides from `/sdcard/exports` only, device untouched
@@ -22,7 +24,7 @@ Bluetooth on the device is broken; everything goes over USB.
 7. **Settings**: data folder path, saved to a config file
 
 ## Session backup
-On first connect, `BCfgManager-Bolt.xml` is saved to `backups/session/`. Removed on a clean quit, kept after a crash or a failed apply.
+On first connect, `BCfgManager-Bolt.xml` is saved to `backups/session/`. Removed on a clean quit, kept after a crash or a failed apply. Apply and restore are refused until it exists. It can be restored from Backup / restore, but not deleted there.
 
 ## Apply flow
 Stage edits → review diff → Apply (pull a fresh config, refuse if its pages changed → put edits in → push → fix owner/perms → pull and verify → `force-stop` app, it restarts with the new config in seconds). Quit is blocked while applying. Details in `docs/format.md`.
@@ -47,8 +49,17 @@ data/
 6. ✓ Rides pull, routes sync
 
 ## Later / research
+- Decode fields 426–429 (on the climb page): swap one in, see what the device shows
+- Indoor Cycling profile pages (no `DISPLAY_CFG` of its own yet)
+- Delete copied rides from the device to free space
+- `SOUNDS_CFG` bitmask, `LED_MODE` values 2–4 (see `docs/format.md`)
 - Direct USB, no adb dependency
 - Polish translations (out of scope for now)
+
+## Before publishing
+- Add a LICENSE
+- README: `go install github.com/wszczawinski/flatlinecc/cmd/flatlinecc@latest`
+- CI: `go vet` + `go test` on push
 
 ## Out of scope
 - Structured workouts (.plan)
