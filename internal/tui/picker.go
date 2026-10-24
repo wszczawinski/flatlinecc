@@ -30,6 +30,10 @@ func NewPicker(current uint16, pageType uint8) Picker {
 	input.Focus()
 
 	all := fields.ForPage(pageType)
+	if !slices.Contains(all, current) {
+		// Keep the slot's field pickable even when it's hidden for this page.
+		all = append(all, current)
+	}
 	slices.SortFunc(all, func(a, b uint16) int {
 		return cmp.Compare(fields.Name(a), fields.Name(b))
 	})

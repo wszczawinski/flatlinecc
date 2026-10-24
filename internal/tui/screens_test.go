@@ -123,3 +123,18 @@ func TestPickerFilter(t *testing.T) {
 		t.Fatal("selected with no matches")
 	}
 }
+
+func TestPickerKeepsHiddenCurrentField(t *testing.T) {
+	// 11 (Lap Distance) is offered only on the lap page.
+	p := NewPicker(11, 0)
+	if id, _ := p.Selected(); id != 11 {
+		t.Fatalf("cursor on %d, want hidden current field 11", id)
+	}
+}
+
+func TestEmptyPageEnter(t *testing.T) {
+	s := press(loaded(page(0)), "enter", "enter")
+	if s.picking {
+		t.Fatal("picker opened on a page with no fields")
+	}
+}

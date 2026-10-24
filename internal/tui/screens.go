@@ -226,6 +226,9 @@ func (s Screens) updatePage(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			s.slot++
 		}
 	case "enter":
+		if len(s.page().Fields) == 0 {
+			return s, nil
+		}
 		s.picking, s.picker = true, NewPicker(s.page().Fields[s.slot], s.page().Type())
 		return s, textinput.Blink
 	}
