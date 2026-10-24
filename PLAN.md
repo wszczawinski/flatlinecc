@@ -16,8 +16,8 @@ Bluetooth on the device is broken; everything goes over USB.
    - add / remove fields on a page
 2. **Sounds**: mute and buzzer toggles (`MUTE`, `BUZZ_*`). Phone alerts skipped (need Bluetooth); LEDs and backlight are set on the device
 3. **Backup / restore config**: manual copies of `BCfgManager-Bolt.xml`, kept in `backups/manual/` (restore via `elemnt_config.zip` doesn't work on current firmware)
-4. **Pull rides**: copy new rides only, device untouched
-5. **Push routes**: push routes not yet on the device
+4. **Pull rides**: copy new `.fit` rides from `/sdcard/exports` only, device untouched
+5. **Sync routes**: `.gpx` files in `/sdcard/routes`, both ways. Local wins when sizes differ; nothing is deleted
 6. **Device info**
 7. **Settings**: data folder path, saved to a config file
 
@@ -44,7 +44,7 @@ data/
 3. ✓ Screen editor + apply flow: change, add, remove and reorder fields
 4. ✓ Backup / restore UI
 5. ✓ Sounds: toggles (`SOUNDS_CFG` bitmask not decoded)
-6. Rides pull, routes push
+6. ✓ Rides pull, routes sync
 
 ## Later / research
 - Direct USB, no adb dependency

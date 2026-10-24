@@ -13,7 +13,7 @@ Run `flatlinecc` and pick from a menu:
 - **Screens**: change data fields on each page, add or remove fields
 - **Sounds**: mute and buzzer settings
 - **Rides**: copy new rides to a local folder
-- **Routes**: push new routes to the device
+- **Routes**: sync `.gpx` routes both ways between a local folder and the device
 - **Backup / restore**: device config
 - **Device info**
 - **Settings**: local data folder (default `./data`, relative to where you run it; it holds your rides and config backups, so don't run it inside another git repo, or set an absolute path)
@@ -56,7 +56,7 @@ internal/config/  # settings
 internal/fields/  # field and page names
 internal/prefs/   # values in the live config XML
 internal/tui/     # menu and screens
-internal/wahoo/   # pull, back up and apply the live config
+internal/wahoo/   # live config, rides and routes on the device
 docs/format.md    # reverse-engineered format notes
 ```
 
@@ -74,7 +74,7 @@ git push && git push --tags
 
 ## Status
 
-Work in progress. Screens, Sounds, Backup / restore and Device info work; Rides and Routes are not built yet.
+All menu items work. Open questions about the config format are in [docs/format.md](docs/format.md).
 
 ## Credits
 

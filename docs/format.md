@@ -31,6 +31,17 @@ adb shell am force-stop com.wahoofitness.bolt
 - Small race: if the app saves prefs between push and stop, it overwrites the file. Pull and compare afterwards to verify.
 - `adb reboot` also works instead of `force-stop`.
 
+## Files on the device
+
+| Path | Contents |
+|---|---|
+| `/sdcard/exports/` | finished rides, `.fit`, named `YYYY-MM-DD-HHMMSS-ELEMNT ROAM <id>-<n>-0.fit` (start time first) |
+| `/sdcard/routes/` | routes, plain `.gpx`. A file pushed here shows up on the device, no restart needed |
+| `/sdcard/plans/` | planned workouts (empty here) |
+| `/sdcard/maps/` | map tiles |
+
+File names contain spaces, so listing uses `find … -exec stat -c '%s %n'` rather than parsing `ls`.
+
 ## Backup / restore zip
 
 - Backup: create `/sdcard/config_backup` on the device → `elemnt_config.zip` appears there after a few seconds. It's an export of the live config above.
