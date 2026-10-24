@@ -16,9 +16,9 @@ Run `flatlinecc` and pick from a menu:
 - **Routes**: push new routes to the device
 - **Backup / restore**: device config
 - **Device info**
-- **Settings**: local data folder (default `./data`)
+- **Settings**: local data folder (default `./data`, relative to where you run it; it holds your rides and config backups, so don't run it inside another git repo, or set an absolute path)
 
-Built with Go and [Charm](https://charm.sh) (Bubble Tea, Bubbles, Lip Gloss, Huh). Talks to the device through `adb`.
+Built with Go and [Charm](https://charm.sh) (Bubble Tea, Bubbles, Lip Gloss). Talks to the device through `adb`.
 
 See [PLAN.md](PLAN.md) for details and milestones.
 
@@ -40,6 +40,8 @@ Requires Go and `adb` (`brew install go android-platform-tools`).
 ```
 go mod tidy                                  # sync dependencies with imports
 go run ./cmd/flatlinecc                      # compile to a temp binary and run
+go test -race ./...                          # run tests
+go test ./internal/cfg -fuzz FuzzParseDisplay  # fuzz a parser (ctrl+c to stop)
 go build -o flatlinecc ./cmd/flatlinecc      # build ./flatlinecc
 go install ./cmd/flatlinecc                  # install to ~/go/bin (add to PATH)
 ```
@@ -49,8 +51,13 @@ Layout:
 ```
 cmd/flatlinecc/   # entry point (package main)
 internal/adb/     # device access
+internal/cfg/     # .cfg and DISPLAY_CFG binary formats
 internal/config/  # settings
+internal/fields/  # field and page names
+internal/prefs/   # values in the live config XML
 internal/tui/     # menu and screens
+internal/wahoo/   # pull, back up and apply the live config
+docs/format.md    # reverse-engineered format notes
 ```
 
 ## Releasing
@@ -67,7 +74,7 @@ git push && git push --tags
 
 ## Status
 
-Early work in progress.
+Work in progress. Changing fields on pages works; the rest of the menu is not built yet.
 
 ## Credits
 
