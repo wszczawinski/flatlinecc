@@ -135,6 +135,10 @@ func (a App) screenFor(item string) tea.Model {
 		return NewScreens(a.connected().Serial, a.SessionBackup() != "")
 	case "Sounds":
 		return NewSounds(a.connected().Serial, a.SessionBackup() != "")
+	case "Rides":
+		return NewRides(a.connected().Serial, a.cfg.DataDir)
+	case "Routes":
+		return NewRoutes(a.connected().Serial, a.cfg.DataDir)
 	case "Backup / restore":
 		return NewBackups(a.connected().Serial, a.cfg.DataDir, a.SessionBackup())
 	case "Settings":

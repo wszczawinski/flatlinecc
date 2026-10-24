@@ -48,10 +48,16 @@ func Pull(ctx context.Context, serial, remote string) ([]byte, error) {
 	}
 	tmp.Close()
 	defer os.Remove(tmp.Name())
-	if _, err := run(ctx, "-s", serial, "pull", remote, tmp.Name()); err != nil {
+	if err := PullFile(ctx, serial, remote, tmp.Name()); err != nil {
 		return nil, err
 	}
 	return os.ReadFile(tmp.Name())
+}
+
+// PullFile copies a file from the device to a local path.
+func PullFile(ctx context.Context, serial, remote, local string) error {
+	_, err := run(ctx, "-s", serial, "pull", remote, local)
+	return err
 }
 
 // Push writes data to a file on the device.
@@ -68,7 +74,12 @@ func Push(ctx context.Context, serial string, data []byte, remote string) error 
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	_, err = run(ctx, "-s", serial, "push", tmp.Name(), remote)
+	return PushFile(ctx, serial, tmp.Name(), remote)
+}
+
+// PushFile copies a local file to the device.
+func PushFile(ctx context.Context, serial, local, remote string) error {
+	_, err := run(ctx, "-s", serial, "push", local, remote)
 	return err
 }
 
