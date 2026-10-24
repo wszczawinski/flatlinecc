@@ -1,3 +1,18 @@
+## [0.3.0] - 2026-10-24
+
+### 🚀 Features
+
+- *(screens)* Add, delete and reorder fields on a page
+- *(sounds)* Toggle buzzers and mute from the TUI
+- *(backup)* Manual backups, restore and delete from the TUI
+
+### 🐛 Bug Fixes
+
+- *(sounds)* Write only changed toggles
+
+### 📚 Documentation
+
+- Sounds, backlight and LED fields; mark milestones done
 ## [0.2.0] - 2026-10-24
 
 ### 🚀 Features
