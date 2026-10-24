@@ -1,3 +1,19 @@
+## [0.2.0] - 2026-10-24
+
+### 🚀 Features
+
+- *(cfg)* Read and write screen layouts in the live device config
+- *(screens)* List pages and fields from the device
+- *(fields)* Rename pages, hide unused fields, page-only field lists
+- *(screens)* Pick fields and apply changes, with session backup
+
+### 🐛 Bug Fixes
+
+- *(screens)* Keep hidden current field in picker, ignore enter on empty page
+
+### 📚 Documentation
+
+- Update layout, apply flow, milestones and test commands
 ## [0.1.0] - 2026-10-21
 
 ### 🚀 Features
