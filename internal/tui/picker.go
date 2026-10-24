@@ -93,8 +93,7 @@ func (p Picker) View() string {
 		lines = append(lines, mutedStyle.Render("No matching fields"))
 		return strings.Join(lines, "\n")
 	}
-	start := min(max(p.cursor-pickerRows/2, 0), max(len(p.matches)-pickerRows, 0))
-	end := min(start+pickerRows, len(p.matches))
+	start, end := window(p.cursor, len(p.matches), pickerRows)
 	for i := start; i < end; i++ {
 		lines = append(lines, listLine(fields.Name(p.matches[i]), i == p.cursor))
 	}

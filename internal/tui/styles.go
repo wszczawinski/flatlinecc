@@ -42,3 +42,10 @@ func frame(title, body, help string) string {
 		helpStyle.Render(help),
 	))
 }
+
+// window returns the visible range of a list of n rows, at most rows tall,
+// keeping the cursor near the middle.
+func window(cursor, n, rows int) (start, end int) {
+	start = min(max(cursor-rows/2, 0), max(n-rows, 0))
+	return start, min(start+rows, n)
+}
