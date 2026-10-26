@@ -12,15 +12,25 @@ Run `flatlinecc` and pick from a menu:
 
 - **Screens**: change, add, remove and reorder data fields on each page
 - **Sounds**: mute and buzzer settings
-- **Rides**: copy new rides to a local folder
-- **Routes**: sync `.gpx` routes both ways between a local folder and the device
-- **Backup / restore**: save and restore the device config. It is also backed up automatically when a session starts
+- **Rides**: copy new rides to the data folder. The device is never changed
+- **Routes**: sync `.gpx` routes both ways between the data folder and the device. When both have a route with different sizes, the local one wins; nothing is deleted
+- **Backup / restore**: save and restore the device config
 - **Device info**
-- **Settings**: local data folder (default `./data`, relative to where you run it; it holds your rides and config backups, so don't run it inside another git repo, or set an absolute path)
+- **Settings**: where the data folder is
+
+Changes to screens and sounds are staged first. Apply shows what changes, then writes the config to the device and restarts the Wahoo app, which takes a few seconds.
 
 Built with Go and [Charm](https://charm.sh) (Bubble Tea, Bubbles, Lip Gloss). Talks to the device through `adb`.
 
-`flatlinecc -version` prints the version. See [PLAN.md](PLAN.md) for details and milestones.
+## Install
+
+Requires Go and `adb` (`brew install go android-platform-tools`).
+
+```
+go install ./cmd/flatlinecc   # installs to ~/go/bin, add it to PATH
+flatlinecc                    # run
+flatlinecc -version           # print the version
+```
 
 ## Connecting the ROAM
 
@@ -33,31 +43,42 @@ The ROAM must authorize your computer for `adb`. This has to be repeated every t
 
 `adb devices -l` should now show `device` instead of `unauthorized`.
 
-## Development
+## Data folder
 
-Requires Go and `adb` (`brew install go android-platform-tools`).
+Rides, routes and config backups go into one folder, `./data` by default. It's relative to where you run flatlinecc, so don't run it inside another git repo, or set an absolute path in Settings (saved to `~/.config/flatlinecc/config.toml`).
 
 ```
-go mod tidy                                  # sync dependencies with imports
-go run ./cmd/flatlinecc                      # compile to a temp binary and run
-go test -race ./...                          # run tests
-go test ./internal/cfg -fuzz FuzzParseDisplay # fuzz a parser (ctrl+c to stop)
-go build -o flatlinecc ./cmd/flatlinecc      # build ./flatlinecc
-go install ./cmd/flatlinecc                  # install to ~/go/bin (add to PATH)
+data/
+  rides/            # .fit files copied from the device
+  routes/           # .gpx files, synced both ways
+  backups/
+    manual/         # made from Backup / restore, kept until you delete them
+    session/        # made automatically on connect
+```
+
+The session backup is the config as it was when you connected. It's removed when you quit normally, and kept after a crash or a failed apply so you can restore it. Apply and restore stay disabled until it exists.
+
+## Development
+
+```
+go run ./cmd/flatlinecc                    # compile to a temp binary and run
+go test -race ./...                        # run tests
+go test ./internal/display -fuzz FuzzParse # fuzz a parser (ctrl+c to stop)
+go mod tidy                                # sync dependencies with imports
 ```
 
 Layout:
 
 ```
-cmd/flatlinecc/   # entry point (package main)
-internal/adb/     # device access
-internal/cfg/     # .cfg and DISPLAY_CFG binary formats
-internal/config/  # settings
-internal/fields/  # field and page names
-internal/prefs/   # values in the live config XML
-internal/tui/     # menu and screens
-internal/wahoo/   # live config, rides and routes on the device
-docs/format.md    # reverse-engineered format notes
+cmd/flatlinecc/      # entry point (package main)
+internal/adb/        # device access
+internal/config/     # settings
+internal/datafields/ # data field and page names
+internal/display/    # DISPLAY_CFG page layout (binary)
+internal/prefs/      # values in the live config XML
+internal/tui/        # menu and screens
+internal/wahoo/      # live config, sounds, rides and routes on the device
+docs/format.md       # reverse-engineered format notes
 ```
 
 ## Releasing
@@ -74,7 +95,7 @@ git push && git push --tags
 
 ## Status
 
-All menu items work. Open questions about the config format are in [docs/format.md](docs/format.md).
+All menu items work. Open questions about the config format are in [docs/format.md](docs/format.md), ideas and research notes in [PLAN.md](PLAN.md).
 
 ## Credits
 
