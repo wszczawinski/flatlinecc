@@ -59,9 +59,6 @@ func (s Settings) save() (tea.Model, tea.Cmd) {
 }
 
 func (s Settings) View() string {
-	body := labelStyle.Render("Data folder") + "\n" + s.input.View()
-	if s.status != "" {
-		body += "\n\n" + s.status
-	}
+	body := withStatus([]string{labelStyle.Render("Data folder"), s.input.View()}, s.status)
 	return frame(crumbs("Settings"), body, "enter save · esc back")
 }

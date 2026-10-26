@@ -27,7 +27,7 @@ func quits(cmd tea.Cmd) bool {
 
 func TestQuitBlockedWhileApplying(t *testing.T) {
 	ctrlC := tea.KeyMsg{Type: tea.KeyCtrlC}
-	if _, cmd := connectedApp(Screens{applying: true}).Update(ctrlC); quits(cmd) {
+	if _, cmd := connectedApp(Screens{applyState: applyState{applying: true}}).Update(ctrlC); quits(cmd) {
 		t.Fatal("ctrl+c quit during apply")
 	}
 	if _, cmd := connectedApp(Screens{}).Update(ctrlC); !quits(cmd) {
@@ -35,7 +35,7 @@ func TestQuitBlockedWhileApplying(t *testing.T) {
 	}
 
 	// unplugged mid-apply: q on the connect screen must not quit either
-	a := connectedApp(Screens{applying: true})
+	a := connectedApp(Screens{applyState: applyState{applying: true}})
 	a.devices = nil
 	if _, cmd := a.Update(key("q")); quits(cmd) {
 		t.Fatal("q quit during apply while unplugged")
@@ -83,5 +83,55 @@ func TestBackupRetriesAfterFailure(t *testing.T) {
 	m, _ = a.Update(devicesMsg{devices: a.devices})
 	if !m.(App).backup.started {
 		t.Fatal("next poll did not retry the backup")
+	}
+}
+
+func TestMenuOpensEveryScreen(t *testing.T) {
+	for i, item := range menuItems {
+		m, _ := connectedApp(nil).Update(selectMsg{i})
+		if m.(App).screen == nil {
+			t.Errorf("%s opened no screen", item.label)
+		}
+	}
+}
+
+func TestMoveCursor(t *testing.T) {
+	tests := []struct {
+		cursor, n int
+		key       string
+		want      int
+	}{
+		{0, 3, "down", 1},
+		{2, 3, "j", 2},
+		{1, 3, "up", 0},
+		{0, 3, "k", 0},
+		{0, 0, "down", 0},
+		{1, 3, "x", 1},
+	}
+	for _, tt := range tests {
+		if got := moveCursor(tt.cursor, tt.n, tt.key); got != tt.want {
+			t.Errorf("moveCursor(%d, %d, %q) = %d, want %d", tt.cursor, tt.n, tt.key, got, tt.want)
+		}
+	}
+}
+
+func TestBackupStopsRetrying(t *testing.T) {
+	a := connectedApp(nil)
+	devices := a.devices
+	for range backupTries {
+		m, _ := a.Update(devicesMsg{devices: devices})
+		m, _ = m.Update(backupMsg{err: errors.New("read-only data folder")})
+		a = m.(App)
+	}
+	m, _ := a.Update(devicesMsg{devices: devices})
+	if m.(App).backup.started {
+		t.Fatal("backup retried past the limit")
+	}
+
+	// unplug and plug back in: tries again
+	m, _ = m.Update(devicesMsg{})
+	m, _ = m.Update(devicesMsg{devices: devices})
+	if !m.(App).backup.started {
+		t.Fatal("replug did not retry the backup")
 	}
 }

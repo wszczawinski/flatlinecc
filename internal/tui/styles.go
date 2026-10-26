@@ -54,6 +54,33 @@ func window(cursor, n, rows int) (start, end int) {
 // listRows is how many rows long lists show at once.
 const listRows = 15
 
+// moveCursor handles the up and down keys on a list of n rows.
+func moveCursor(cursor, n int, key string) int {
+	switch key {
+	case "up", "k":
+		return max(cursor-1, 0)
+	case "down", "j":
+		return max(min(cursor+1, n-1), 0)
+	}
+	return cursor
+}
+
+func listLine(text string, selected bool) string {
+	if selected {
+		return selectedStyle.Render("> " + text)
+	}
+	return itemStyle.Render(text)
+}
+
+// withStatus joins lines and appends the status message, if any.
+func withStatus(lines []string, status string) string {
+	body := strings.Join(lines, "\n")
+	if status != "" {
+		body += "\n\n" + status
+	}
+	return body
+}
+
 func humanSize(n int64) string {
 	switch {
 	case n >= 1<<20:

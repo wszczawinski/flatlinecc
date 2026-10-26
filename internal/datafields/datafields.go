@@ -1,7 +1,7 @@
-// Package fields names data field and page types used in DISPLAY_CFG.
+// Package datafields names the data field and page types in DISPLAY_CFG.
 // Based on https://gist.github.com/Intyre/aefc6cced18f0610df57adcb70a11453,
 // plus IDs observed on a ROAM v1.
-package fields
+package datafields
 
 import (
 	"fmt"
@@ -49,7 +49,7 @@ var pageOnly = map[uint8][]uint16{
 		1, 3, 6, 11, 34, 35, 36, 42, 43, 62, 64, 72, 74, 154, 155,
 		254, 255, 256, 258, 259, 268, 269, 342,
 	},
-	4:  {120, 121, 122},                // KICKR
+	4:  {120, 121, 122, 180},           // KICKR
 	8:  {238, 239, 240, 241, 242},      // Segment
 	15: {293, 295, 296, 297, 298, 299}, // Planned Workout
 }
@@ -66,8 +66,6 @@ var pageNames = map[uint8]string{
 	15: "Planned Workout",
 	25: "Pedal Monitor",
 	29: "Multisport",
-
-	// Observed on device, not in Intyre's table.
 	39: "Climb",
 }
 
@@ -103,18 +101,18 @@ var names = map[uint16]string{
 	51: "Max Temperature",
 	52: "Min Temperature",
 	53: "Avg Temperature",
-	// 60: "Cadence",
-	// 61: "Avg Cadence",
+	60: "Cadence",
+	61: "Avg Cadence",
 	62: "Lap Avg Cadence",
-	// 63: "Max Cadence",
+	63: "Max Cadence",
 	64: "Max Lap Cadence",
 	70: "Heart Rate",
 	71: "Avg Heart Rate",
 	72: "Lap Avg Heart Rate",
 	73: "Max Heart Rate",
 	74: "Max Lap Heart Rate",
-	// 75:  "Heart Rate Zone",
-	// 76:  "Heart Rate %",
+	75: "Heart Rate Zone",
+	76: "Heart Rate %",
 	// 77:  "HR Zone 1 Time",
 	// 78:  "HR Zone 2 Time",
 	// 79:  "HR Zone 3 Time",
@@ -124,12 +122,12 @@ var names = map[uint16]string{
 	// 91:  "Work (kJ)",
 	// 92:  "Calorie Rate",
 	// 101: "Power/Weight",
-	// 102: "Avg Power",
+	102: "Avg Power",
 	// 103: "Lap Avg Power",
 	// 104: "Max Power",
 	// 105: "Max Lap Power",
 	// 106: "TSS",
-	// 107: "Normalized Power",
+	107: "Normalized Power",
 	// 108: "Intensity Factor",
 	// 109: "L/R Balance",
 	// 110: "Avg L/R Balance",
@@ -165,14 +163,13 @@ var names = map[uint16]string{
 	// 176: "Max 60m Power",
 	// 177: "KICKR Power",
 	// 179: "Torque",
-	// 180: "3s Power",
+	180: "3s Power",
 	// 181: "5s L/R Balance",
 	// 182: "3s Torque",
 	// 183: "5s Torque",
 	// 184: "20s Torque",
 	// 185: "30s Torque",
 	// 186: "Max 3s Power",
-	// Muscle oxygen sensor fields, not used.
 	// 187: "Muscle O2 tHb",
 	// 188: "Muscle O2 tHb Avg",
 	// 189: "Muscle O2 tHb Lap Avg",
@@ -188,8 +185,8 @@ var names = map[uint16]string{
 	// 199: "Muscle O2 SmO2 Max",
 	// 200: "Muscle O2 SmO2 Lap Max",
 	201: "Speed",
-	// 210: "Gear",
-	// 211: "Gear (of total)",
+	210: "Gear",
+	211: "Gear (of total)",
 	// 212: "Front Gear",
 	// 213: "Front Gear (of total)",
 	// 214: "Rear Gear",
@@ -258,7 +255,6 @@ var names = map[uint16]string{
 	297: "Plan Interval Left",
 	298: "Plan Workout Left",
 	299: "Plan Interval Count",
-	// Swim fields, not used on a bike computer.
 	// 300: "Swim Stroke Rate",
 	// 301: "Swim Strokes",
 	// 302: "Swim Strokes (set)",
@@ -267,7 +263,6 @@ var names = map[uint16]string{
 	// 305: "Swim Lengths (set)",
 	// 306: "Swim Lengths (last set)",
 	// 310: "Variability Index",
-	// Run fields, not used on a bike computer.
 	// 311: "Grade-Adjusted Pace",
 	// 312: "Avg Grade-Adjusted Pace",
 	// 313: "Lap Grade-Adjusted Pace",
@@ -302,14 +297,13 @@ var names = map[uint16]string{
 	// 367: "E-bike Assist Level",
 	// 368: "E-bike Range",
 	// 369: "E-bike Battery",
-	371: "Workout Time",
+	// 371: "Workout Time",
 	// 374: "Last Leg Time",
 	// 375: "Transition Time",
 	// 376: "Last Transition Time",
-	377: "Workout Calories",
+	// 377: "Workout Calories",
 	// 378: "Watch Battery",
-	379: "Total Workout Time",
-	// Run fields, not used on a bike computer.
+	// 379: "Total Workout Time",
 	// 380: "Ground Contact Time",
 	// 381: "Avg Ground Contact Time",
 	// 382: "Lap Ground Contact Time",
@@ -322,7 +316,5 @@ var names = map[uint16]string{
 	// 389: "Last Lap Vertical Oscillation",
 	// 390: "Max Vertical Oscillation",
 	// 391: "Min Vertical Oscillation",
-
-	// Observed on device, not in Intyre's table.
 	425: "Grade",
 }

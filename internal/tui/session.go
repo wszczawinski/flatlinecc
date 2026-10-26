@@ -2,18 +2,14 @@ package tui
 
 import (
 	"context"
-	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/wszczawinski/flatlinecc/internal/wahoo"
 )
 
-// sessionBackupDir holds the config as it was when the session started.
-// The backup is removed on a clean quit and kept otherwise.
-func sessionBackupDir(dataDir string) string {
-	return filepath.Join(dataDir, "backups", "session")
-}
+// backupTries is how many times the session backup is tried per connect.
+const backupTries = 3
 
 type backupMsg struct {
 	path string
@@ -30,8 +26,10 @@ func backupConfig(serial, dataDir string) tea.Cmd {
 	}
 }
 
+// backup is the state of the session backup.
 type backup struct {
 	started, done bool
+	tries         int  // attempts since the device was plugged in
 	keep          bool // an apply failed; keep the backup on quit
 	path          string
 	err           error

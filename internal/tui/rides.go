@@ -15,12 +15,6 @@ import (
 	"github.com/wszczawinski/flatlinecc/internal/wahoo"
 )
 
-const rideTimeout = 2 * time.Minute // one .fit file
-
-func ridesDir(dataDir string) string {
-	return filepath.Join(dataDir, "rides")
-}
-
 type ridesMsg struct {
 	rides []wahoo.File
 	err   error
@@ -88,14 +82,8 @@ func (r Rides) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "esc":
 			return r, back
-		case "up", "k":
-			if r.cursor > 0 {
-				r.cursor--
-			}
-		case "down", "j":
-			if r.cursor < len(r.rides)-1 {
-				r.cursor++
-			}
+		case "up", "k", "down", "j":
+			r.cursor = moveCursor(r.cursor, len(r.rides), msg.String())
 		case "s":
 			r.status = ""
 			for _, ride := range r.rides {

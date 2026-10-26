@@ -11,8 +11,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/wszczawinski/flatlinecc/internal/cfg"
-	"github.com/wszczawinski/flatlinecc/internal/fields"
+	"github.com/wszczawinski/flatlinecc/internal/datafields"
+	"github.com/wszczawinski/flatlinecc/internal/display"
 	"github.com/wszczawinski/flatlinecc/internal/prefs"
 	"github.com/wszczawinski/flatlinecc/internal/wahoo"
 )
@@ -21,95 +21,71 @@ import (
 var pageOrder = []uint8{0, 2, 39, 3} // workout, elevation, climb, map
 
 type screensMsg struct {
-	base    []byte
-	display *cfg.Display
-	err     error
+	base   []byte
+	layout *display.Layout
+	err    error
 }
 
 // Screens lists the data pages from the live config; enter opens a page's fields.
 type Screens struct {
-	serial   string
-	backedUp bool   // a session backup exists; apply is refused without one
-	base     []byte // DISPLAY_CFG as read from the device
-	display  *cfg.Display
-	orig     [][]uint16 // fields per page as read from the device
-	order    []int      // display.Pages indexes in list order
-	err      error
-	status   string
-	cursor   int  // selected row in order
-	open     bool // showing the selected page's fields
-	slot     int  // selected field on the open page
-	picking  bool // choosing a field for the selected slot
-	adding   bool // the picked field goes in a new slot below the selected one
-	picker   Picker
-	confirm  bool // reviewing changes before apply
-	applying bool
+	applyState
+	serial  string
+	base    []byte // DISPLAY_CFG as read from the device
+	layout  *display.Layout
+	orig    [][]uint16 // fields per page as read from the device
+	order   []int      // layout.Pages indexes in list order
+	err     error
+	cursor  int  // selected row in order
+	open    bool // showing the selected page's fields
+	slot    int  // selected field on the open page
+	picking bool // choosing a field for the selected slot
+	adding  bool // the picked field goes in a new slot below the selected one
+	picker  Picker
 }
 
 // NewScreens returns the Screens editor for serial; backedUp enables apply.
 func NewScreens(serial string, backedUp bool) Screens {
-	return Screens{serial: serial, backedUp: backedUp}
+	return Screens{serial: serial, applyState: applyState{backedUp: backedUp}}
 }
 
 func (s Screens) Init() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), adbTimeout)
 		defer cancel()
-		_, data, err := pullDisplay(ctx, s.serial)
+		doc, err := wahoo.PullConfig(ctx, s.serial)
 		if err != nil {
 			return screensMsg{err: err}
 		}
-		d, err := cfg.ParseDisplay(data)
-		return screensMsg{data, d, err}
+		data, err := prefs.Bytes(doc, display.ConfigField)
+		if err != nil {
+			return screensMsg{err: err}
+		}
+		l, err := display.Parse(data)
+		return screensMsg{data, l, err}
 	}
-}
-
-// pullDisplay reads the live config and its DISPLAY_CFG bytes.
-func pullDisplay(ctx context.Context, serial string) (doc, data []byte, err error) {
-	doc, err = wahoo.PullConfig(ctx, serial)
-	if err != nil {
-		return nil, nil, err
-	}
-	data, err = prefs.Bytes(doc, cfg.DisplayCfgID)
-	return doc, data, err
-}
-
-// Busy reports whether an apply is writing to the device.
-func (s Screens) Busy() bool {
-	return s.applying
 }
 
 func (s Screens) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, ok := s.applyState.update(msg, s.apply, s.Init); ok {
+		return s, cmd
+	}
 	switch msg := msg.(type) {
-	case backupMsg:
-		s.backedUp = msg.err == nil
 	case screensMsg:
-		s.base, s.display, s.err, s.orig = msg.base, msg.display, msg.err, nil
-		if s.display != nil {
-			s.order = listOrder(s.display.Pages)
-			for _, p := range s.display.Pages {
+		s.base, s.layout, s.err, s.orig = msg.base, msg.layout, msg.err, nil
+		if s.layout != nil {
+			s.order = listOrder(s.layout.Pages)
+			for _, p := range s.layout.Pages {
 				s.orig = append(s.orig, slices.Clone(p.Fields))
 			}
 		}
-	case appliedMsg:
-		s.applying = false
-		var cmd tea.Cmd
-		if s.status, cmd = applyResult(msg); cmd != nil {
-			return s, cmd
-		}
-		return s, s.Init()
 	case tea.KeyMsg:
-		if s.display == nil {
+		if s.layout == nil {
 			if msg.String() == "esc" {
 				return s, back
 			}
 			return s, nil
 		}
 		switch {
-		case s.applying:
-			return s, nil
-		case s.confirm:
-			return s.updateConfirm(msg)
 		case s.picking:
 			return s.updatePicker(msg)
 		case s.open:
@@ -119,18 +95,12 @@ func (s Screens) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "esc":
 			return s, back
-		case "up", "k":
-			if s.cursor > 0 {
-				s.cursor--
-			}
-		case "down", "j":
-			if s.cursor < len(s.order)-1 {
-				s.cursor++
-			}
+		case "up", "k", "down", "j":
+			s.cursor = moveCursor(s.cursor, len(s.order), msg.String())
 		case "enter":
 			s.open, s.slot = true, 0
 		case "a":
-			s = s.startApply()
+			s.start(len(s.changes()) > 0)
 		}
 	default:
 		if s.picking {
@@ -142,46 +112,22 @@ func (s Screens) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
-// startApply opens the review of changes, or says why it can't.
-func (s Screens) startApply() Screens {
-	switch {
-	case len(s.changes()) == 0:
-		s.status = mutedStyle.Render("No changes")
-	case !s.backedUp:
-		s.status = errorStyle.Render("No session backup, apply disabled")
-	default:
-		s.confirm = true
-	}
-	return s
-}
-
-func (s Screens) updateConfirm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch key.String() {
-	case "esc", "n":
-		s.confirm = false
-	case "y":
-		s.confirm, s.applying = false, true
-		return s, s.apply()
-	}
-	return s, nil
-}
-
 // apply writes the edited layout into the live config, unless the pages
 // changed on the device since Screens opened.
 func (s Screens) apply() tea.Cmd {
-	data, err := s.display.Bytes()
+	data, err := s.layout.Bytes()
 	return applyEdit(s.serial, func(doc []byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		current, err := prefs.Bytes(doc, cfg.DisplayCfgID)
+		current, err := prefs.Bytes(doc, display.ConfigField)
 		if err != nil {
 			return nil, err
 		}
 		if !bytes.Equal(current, s.base) {
 			return nil, errors.New("pages changed on the device, reopen Screens")
 		}
-		return prefs.SetBytes(doc, cfg.DisplayCfgID, data)
+		return prefs.SetBytes(doc, display.ConfigField, data)
 	})
 }
 
@@ -226,7 +172,7 @@ var maxFields = map[uint8]int{
 
 // fieldLimits returns how many fields page i may hold.
 func (s Screens) fieldLimits(i int) (lo, hi int) {
-	t := s.display.Pages[i].Type()
+	t := s.layout.Pages[i].Type()
 	lo, hi = 1, len(s.orig[i])
 	if n, ok := minFields[t]; ok {
 		lo = n
@@ -258,17 +204,11 @@ func (s Screens) updatePage(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	lo, hi := s.fieldLimits(s.order[s.cursor])
 	switch key.String() {
 	case "a":
-		s = s.startApply()
+		s.start(len(s.changes()) > 0)
 	case "esc":
 		s.open = false
-	case "up", "k":
-		if s.slot > 0 {
-			s.slot--
-		}
-	case "down", "j":
-		if s.slot < len(p.Fields)-1 {
-			s.slot++
-		}
+	case "up", "k", "down", "j":
+		s.slot = moveCursor(s.slot, len(p.Fields), key.String())
 	case "shift+up", "K":
 		if s.slot > 0 {
 			p.Fields[s.slot-1], p.Fields[s.slot] = p.Fields[s.slot], p.Fields[s.slot-1]
@@ -302,7 +242,7 @@ func (s Screens) View() string {
 	switch {
 	case s.err != nil:
 		return frame(crumbs("Screens"), errorStyle.Render(s.err.Error()), "esc back")
-	case s.display == nil:
+	case s.layout == nil:
 		return frame(crumbs("Screens"), "Reading pages…", "esc back")
 	case s.applying:
 		return frame(crumbs("Screens", "Apply"), "Applying…", "")
@@ -314,33 +254,24 @@ func (s Screens) View() string {
 		if s.adding {
 			slot = "New field"
 		}
-		title := crumbs("Screens", fields.PageName(s.page().Type()), slot)
+		title := crumbs("Screens", datafields.PageName(s.page().Type()), slot)
 		return frame(title, s.picker.View(), "type to filter · ↑/↓ move · enter pick · esc cancel")
 	case s.open:
 		p := s.page()
 		lines := make([]string, len(p.Fields))
 		for i, f := range p.Fields {
-			lines[i] = listLine(fmt.Sprintf("%2d. %s%s", i+1, fields.Name(f), s.mark(s.order[s.cursor], i)), i == s.slot)
+			lines[i] = listLine(fmt.Sprintf("%2d. %s%s", i+1, datafields.Name(f), s.mark(s.order[s.cursor], i)), i == s.slot)
 		}
 		help := "↑/↓ move · shift+↑/↓ reorder · enter change\n\nn add · d delete · a apply · esc back"
-		return frame(crumbs("Screens", fields.PageName(p.Type())), s.withStatus(lines), help)
+		return frame(crumbs("Screens", datafields.PageName(p.Type())), withStatus(lines, s.status), help)
 	}
 	lines := make([]string, len(s.order))
 	for row, i := range s.order {
-		p := s.display.Pages[i]
-		line := fmt.Sprintf("%d. %-16s %2d fields%s", row+1, fields.PageName(p.Type()), len(p.Fields), s.mark(i, -1))
+		p := s.layout.Pages[i]
+		line := fmt.Sprintf("%d. %-16s %2d fields%s", row+1, datafields.PageName(p.Type()), len(p.Fields), s.mark(i, -1))
 		lines[row] = listLine(line, row == s.cursor)
 	}
-	return frame(crumbs("Screens"), s.withStatus(lines), "↑/↓ move · enter open · a apply · esc back")
-}
-
-// withStatus joins lines and appends the status message, if any.
-func (s Screens) withStatus(lines []string) string {
-	body := strings.Join(lines, "\n")
-	if s.status != "" {
-		body += "\n\n" + s.status
-	}
-	return body
+	return frame(crumbs("Screens"), withStatus(lines, s.status), "↑/↓ move · enter open · a apply · esc back")
 }
 
 // changes describes each page that differs from the device, in list order.
@@ -348,18 +279,18 @@ func (s Screens) changes() []string {
 	names := func(ids []uint16) string {
 		out := make([]string, len(ids))
 		for i, id := range ids {
-			out[i] = fields.Name(id)
+			out[i] = datafields.Name(id)
 		}
 		return strings.Join(out, ", ")
 	}
 	var out []string
 	for _, i := range s.order {
-		p := s.display.Pages[i]
+		p := s.layout.Pages[i]
 		if slices.Equal(p.Fields, s.orig[i]) {
 			continue
 		}
 		out = append(out,
-			labelStyle.Render(fields.PageName(p.Type())),
+			labelStyle.Render(datafields.PageName(p.Type())),
 			mutedStyle.Render("  was  "+names(s.orig[i])),
 			"  now  "+names(p.Fields))
 	}
@@ -367,13 +298,13 @@ func (s Screens) changes() []string {
 }
 
 // page returns the selected page; edits through it change the staged layout.
-func (s Screens) page() *cfg.Page {
-	return &s.display.Pages[s.order[s.cursor]]
+func (s Screens) page() *display.Page {
+	return &s.layout.Pages[s.order[s.cursor]]
 }
 
 // mark returns " *" if the slot (or any slot when slot is -1) on page i differs from the device.
 func (s Screens) mark(i, slot int) string {
-	cur, orig := s.display.Pages[i].Fields, s.orig[i]
+	cur, orig := s.layout.Pages[i].Fields, s.orig[i]
 	changed := slot < 0 && !slices.Equal(cur, orig) ||
 		slot >= 0 && (slot >= len(orig) || cur[slot] != orig[slot])
 	if changed {
@@ -383,7 +314,7 @@ func (s Screens) mark(i, slot int) string {
 }
 
 // listOrder returns page indexes with pageOrder types first.
-func listOrder(pages []cfg.Page) []int {
+func listOrder(pages []display.Page) []int {
 	rank := func(i int) int {
 		if r := slices.Index(pageOrder, pages[i].Type()); r >= 0 {
 			return r
@@ -396,11 +327,4 @@ func listOrder(pages []cfg.Page) []int {
 	}
 	slices.SortStableFunc(order, func(a, b int) int { return rank(a) - rank(b) })
 	return order
-}
-
-func listLine(text string, selected bool) string {
-	if selected {
-		return selectedStyle.Render("> " + text)
-	}
-	return itemStyle.Render(text)
 }

@@ -10,18 +10,11 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/wszczawinski/flatlinecc/internal/wahoo"
 )
-
-const routeTimeout = time.Minute // one .gpx file
-
-func routesDir(dataDir string) string {
-	return filepath.Join(dataDir, "routes")
-}
 
 // route is a .gpx file on either side; a size of -1 means it's missing there.
 type route struct {
@@ -113,14 +106,8 @@ func (r Routes) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "esc":
 			return r, back
-		case "up", "k":
-			if r.cursor > 0 {
-				r.cursor--
-			}
-		case "down", "j":
-			if r.cursor < len(r.routes)-1 {
-				r.cursor++
-			}
+		case "up", "k", "down", "j":
+			r.cursor = moveCursor(r.cursor, len(r.routes), msg.String())
 		case "s":
 			r.status = ""
 			for _, rt := range r.routes {

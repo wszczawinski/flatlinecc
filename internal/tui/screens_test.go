@@ -8,19 +8,20 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/wszczawinski/flatlinecc/internal/cfg"
+	"github.com/wszczawinski/flatlinecc/internal/display"
 	"github.com/wszczawinski/flatlinecc/internal/prefs"
+	"github.com/wszczawinski/flatlinecc/internal/wahoo"
 )
 
-func page(typ uint8, fields ...uint16) cfg.Page {
+func page(typ uint8, fields ...uint16) display.Page {
 	head := make([]byte, 11)
 	head[5] = typ
-	return cfg.Page{Head: head, Fields: fields}
+	return display.Page{Head: head, Fields: fields}
 }
 
 // loaded returns Screens as if the device sent these pages.
-func loaded(pages ...cfg.Page) Screens {
-	m, _ := NewScreens("serial", true).Update(screensMsg{display: &cfg.Display{Pages: pages}})
+func loaded(pages ...display.Page) Screens {
+	m, _ := NewScreens("serial", true).Update(screensMsg{layout: &display.Layout{Pages: pages}})
 	return m.(Screens)
 }
 
@@ -45,7 +46,7 @@ func press(s Screens, keys ...string) Screens {
 }
 
 func TestListOrder(t *testing.T) {
-	pages := []cfg.Page{page(1), page(3), page(0), page(8), page(39), page(2)}
+	pages := []display.Page{page(1), page(3), page(0), page(8), page(39), page(2)}
 	// workout, elevation, climb, map first, then the rest in file order
 	if got, want := listOrder(pages), []int{2, 5, 4, 1, 0, 3}; !slices.Equal(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
@@ -65,7 +66,7 @@ func TestPickStagesChange(t *testing.T) {
 	}
 	s = press(s, "enter")
 
-	if got := s.display.Pages[0].Fields; !slices.Equal(got, []uint16{158, 30}) {
+	if got := s.layout.Pages[0].Fields; !slices.Equal(got, []uint16{158, 30}) {
 		t.Fatalf("fields %v", got)
 	}
 	if s.mark(0, 1) != " *" || s.mark(0, 0) != "" || s.mark(0, -1) != " *" {
@@ -81,7 +82,7 @@ func TestPickStagesChange(t *testing.T) {
 
 func TestPickerEscKeepsField(t *testing.T) {
 	s := press(loaded(page(0, 158)), "enter", "enter", "x", "esc")
-	if s.picking || s.display.Pages[0].Fields[0] != 158 {
+	if s.picking || s.layout.Pages[0].Fields[0] != 158 {
 		t.Fatal("esc changed the field")
 	}
 }
@@ -94,7 +95,7 @@ func TestApplyNeedsChangesAndBackup(t *testing.T) {
 
 	s = loaded(page(0, 158))
 	s.backedUp = false
-	s.display.Pages[0].Fields[0] = 10
+	s.layout.Pages[0].Fields[0] = 10
 	if s = press(s, "a"); s.confirm {
 		t.Fatal("confirm opened without a session backup")
 	}
@@ -238,7 +239,7 @@ func pressSounds(s Sounds, keys ...string) Sounds {
 }
 
 func TestSoundsToggleAndApplyGuard(t *testing.T) {
-	values := make([]bool, len(soundFields))
+	values := make([]bool, len(wahoo.Sounds))
 	s := pressSounds(loadedSounds(values...), "a")
 	if s.confirm {
 		t.Fatal("confirm opened without changes")
@@ -256,15 +257,15 @@ func TestSoundsToggleAndApplyGuard(t *testing.T) {
 }
 
 func TestSoundsEditOnlyChanged(t *testing.T) {
-	values := make([]bool, len(soundFields))
+	values := make([]bool, len(wahoo.Sounds))
 	s := loadedSounds(values...)
 	s.values[1] = true // workout buzzer (8)
 
 	// on the device, mute (18) was turned on after the screen opened
 	var doc strings.Builder
 	doc.WriteString("<map>\n")
-	for _, f := range soundFields {
-		fmt.Fprintf(&doc, `<boolean name="{&quot;type&quot;:%d,&quot;boltId&quot;:&quot;&quot;}" value="%t" />`+"\n", f.id, f.id == 18)
+	for _, f := range wahoo.Sounds {
+		fmt.Fprintf(&doc, `<boolean name="{&quot;type&quot;:%d,&quot;boltId&quot;:&quot;&quot;}" value="%t" />`+"\n", f.ID, f.ID == 18)
 	}
 	out, err := s.edit([]byte(doc.String()))
 	if err != nil {

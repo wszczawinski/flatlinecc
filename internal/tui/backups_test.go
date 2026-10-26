@@ -111,3 +111,28 @@ func TestSessionBackupProtected(t *testing.T) {
 		t.Fatal("restore of this session's backup should be allowed")
 	}
 }
+
+func TestBackupsKeepSelectionOnReload(t *testing.T) {
+	data := t.TempDir()
+	old := writeBackup(t, sessionBackupDir(data), "20261020-091500")
+	b := NewBackups("serial", data, "")
+	b = pressBackups(b, "down")
+	if b = pressBackups(b, "d"); b.confirm != "delete" {
+		t.Fatal("delete confirm did not open")
+	}
+
+	// this session's backup lands above the selected one
+	current := writeBackup(t, sessionBackupDir(data), "20261025-140200")
+	m, _ := b.Update(backupMsg{path: current})
+	b = m.(Backups)
+	if b.entries[b.cursor-1].path != old || b.confirm != "delete" {
+		t.Fatalf("selection moved to %s", b.entries[b.cursor-1].path)
+	}
+
+	// the selected backup is removed meanwhile: confirm is cancelled
+	os.Remove(old)
+	m, _ = b.Update(manualBackupMsg{})
+	if b = m.(Backups); b.confirm != "" {
+		t.Fatal("confirm still open for a removed backup")
+	}
+}

@@ -13,15 +13,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/wszczawinski/flatlinecc/internal/cfg"
+	"github.com/wszczawinski/flatlinecc/internal/display"
 	"github.com/wszczawinski/flatlinecc/internal/prefs"
 	"github.com/wszczawinski/flatlinecc/internal/wahoo"
 )
-
-// manualBackupDir holds backups made from the Backup / restore screen. They are never removed automatically.
-func manualBackupDir(dataDir string) string {
-	return filepath.Join(dataDir, "backups", "manual")
-}
 
 type backupEntry struct {
 	path    string
@@ -66,7 +61,7 @@ func (b Backups) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case backupMsg:
 		if msg.err == nil {
 			b.session = msg.path
-			b.entries, b.err = listBackups(b.dataDir)
+			b.reload()
 		}
 	case manualBackupMsg:
 		b.working = false
@@ -74,7 +69,7 @@ func (b Backups) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			b.status = errorStyle.Render("Backup failed: " + msg.err.Error())
 		}
-		b.entries, b.err = listBackups(b.dataDir)
+		b.reload()
 	case appliedMsg:
 		b.working = false
 		var cmd tea.Cmd
@@ -94,14 +89,8 @@ func (b Backups) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "esc":
 			return b, back
-		case "up", "k":
-			if b.cursor > 0 {
-				b.cursor--
-			}
-		case "down", "j":
-			if b.cursor < len(b.entries) {
-				b.cursor++
-			}
+		case "up", "k", "down", "j":
+			b.cursor = moveCursor(b.cursor, len(b.entries)+1, msg.String())
 		case "enter":
 			if b.cursor == 0 {
 				b.working = true
@@ -142,10 +131,28 @@ func (b Backups) updateConfirm(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return b, nil
 		}
 		b.status = mutedStyle.Render("Deleted " + e.label)
-		b.entries, b.err = listBackups(b.dataDir)
-		b.cursor = min(b.cursor, len(b.entries))
+		b.reload()
 	}
 	return b, nil
+}
+
+// reload re-reads the backups and keeps the same one selected, so a backup
+// saved meanwhile can't shift the cursor onto another file. If the selected
+// backup is gone, an open confirm is cancelled.
+func (b *Backups) reload() {
+	selected := ""
+	if b.cursor > 0 {
+		selected = b.entries[b.cursor-1].path
+	}
+	b.entries, b.err = listBackups(b.dataDir)
+	if i := slices.IndexFunc(b.entries, func(e backupEntry) bool { return e.path == selected }); i >= 0 {
+		b.cursor = i + 1
+		return
+	}
+	b.cursor = min(b.cursor, len(b.entries))
+	if selected != "" {
+		b.confirm = ""
+	}
 }
 
 func backupNow(serial, dataDir string) tea.Cmd {
@@ -165,9 +172,9 @@ func restore(serial, path string) tea.Cmd {
 		if err != nil {
 			return appliedMsg{err}
 		}
-		data, err := prefs.Bytes(doc, cfg.DisplayCfgID)
+		data, err := prefs.Bytes(doc, display.ConfigField)
 		if err == nil {
-			_, err = cfg.ParseDisplay(data)
+			_, err = display.Parse(data)
 		}
 		if err != nil {
 			return appliedMsg{fmt.Errorf("not a usable backup: %w", err)}
@@ -242,10 +249,7 @@ func (b Backups) View() string {
 	if len(b.entries) == 0 {
 		lines = append(lines, "", mutedStyle.Render("No backups yet"))
 	}
-	if b.status != "" {
-		lines = append(lines, "", b.status)
-	}
-	return frame(crumbs("Backup / restore"), strings.Join(lines, "\n"), help)
+	return frame(crumbs("Backup / restore"), withStatus(lines, b.status), help)
 }
 
 func sectionName(session bool) string {

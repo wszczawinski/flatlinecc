@@ -8,8 +8,8 @@ import (
 	"github.com/wszczawinski/flatlinecc/internal/config"
 )
 
-// selectMsg asks the app to open the screen for a menu item.
-type selectMsg struct{ item string }
+// selectMsg asks the app to open the screen for menuItems[item].
+type selectMsg struct{ item int }
 
 // backMsg asks the app to return to the menu.
 type backMsg struct{}
@@ -17,7 +17,7 @@ type backMsg struct{}
 // configSavedMsg tells the app the config changed.
 type configSavedMsg struct{ cfg config.Config }
 
-func selectItem(item string) tea.Cmd {
+func selectItem(item int) tea.Cmd {
 	return func() tea.Msg { return selectMsg{item} }
 }
 
@@ -61,8 +61,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 	case devicesMsg:
 		a.devices, a.adbErr, a.checked = msg.devices, msg.err, true
-		if d := a.connected(); d != nil && !a.backup.started {
+		d := a.connected()
+		switch {
+		case d == nil:
+			a.backup.tries = 0 // plugging back in tries again
+		case !a.backup.started && a.backup.tries < backupTries:
 			a.backup.started = true
+			a.backup.tries++
 			return a, tea.Batch(poll(), backupConfig(d.Serial, a.cfg.DataDir))
 		}
 		return a, poll()
@@ -71,13 +76,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Retry on the next poll: right after plugging in, the device may not
 		// be ready yet.
 		a.backup.started = msg.err == nil
-		if a.screen != nil {
-			// A screen opened before the backup finished can now apply.
-			var cmd tea.Cmd
-			a.screen, cmd = a.screen.Update(msg)
-			return a, cmd
-		}
-		return a, nil
+		// A screen opened before the backup finished can now apply.
+		return a.updateScreen(msg)
 	case keepBackupMsg:
 		a.backup.keep = true
 		return a, nil
@@ -90,18 +90,16 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case ok && key.String() == "q" && !a.busy():
 			return a, tea.Quit
-		case !ok && a.screen != nil:
+		case !ok:
 			// Deliver results of work started before the device went away.
-			var cmd tea.Cmd
-			a.screen, cmd = a.screen.Update(msg)
-			return a, cmd
+			return a.updateScreen(msg)
 		}
 		return a, nil
 	}
 
 	switch msg := msg.(type) {
 	case selectMsg:
-		a.screen = a.screenFor(msg.item)
+		a.screen = menuItems[msg.item].open(a, a.connected().Serial)
 		return a, a.screen.Init()
 	case backMsg:
 		a.screen = nil
@@ -112,12 +110,20 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if a.screen != nil {
-		var cmd tea.Cmd
-		a.screen, cmd = a.screen.Update(msg)
-		return a, cmd
+		return a.updateScreen(msg)
 	}
 	var cmd tea.Cmd
 	a.menu, cmd = a.menu.Update(msg)
+	return a, cmd
+}
+
+// updateScreen passes msg to the open screen, if any.
+func (a App) updateScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if a.screen == nil {
+		return a, nil
+	}
+	var cmd tea.Cmd
+	a.screen, cmd = a.screen.Update(msg)
 	return a, cmd
 }
 
@@ -136,26 +142,6 @@ func (a App) View() string {
 		statusStyle.Render(statusLine(device)+"  "+a.backup.status()),
 		body,
 	)
-}
-
-func (a App) screenFor(item string) tea.Model {
-	switch item {
-	case "Screens":
-		return NewScreens(a.connected().Serial, a.SessionBackup() != "")
-	case "Sounds":
-		return NewSounds(a.connected().Serial, a.SessionBackup() != "")
-	case "Rides":
-		return NewRides(a.connected().Serial, a.cfg.DataDir)
-	case "Routes":
-		return NewRoutes(a.connected().Serial, a.cfg.DataDir)
-	case "Backup / restore":
-		return NewBackups(a.connected().Serial, a.cfg.DataDir, a.SessionBackup())
-	case "Settings":
-		return NewSettings(a.cfg)
-	case "Device info":
-		return NewDeviceInfo(a.connected().Serial)
-	}
-	panic("no screen for menu item " + item)
 }
 
 // SessionBackup returns the session backup's path, or "" if none was saved.

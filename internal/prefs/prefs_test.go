@@ -3,10 +3,9 @@ package prefs
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
-
-	"github.com/wszczawinski/flatlinecc/internal/cfg"
 )
 
 const doc = `<map>
@@ -42,32 +41,32 @@ func TestSetBytes(t *testing.T) {
 	}
 }
 
-// TestRealFile checks DISPLAY_CFG in a pulled config, if present.
-func TestRealFile(t *testing.T) {
-	in, err := os.ReadFile("../../data/BCfgManager-Bolt.orig.xml")
-	if err != nil {
-		t.Skip("no data/BCfgManager-Bolt.orig.xml")
+// TestRoundTripBackup checks that reading and writing back DISPLAY_CFG
+// (field 53) leaves config backups under data/ unchanged, if any.
+func TestRoundTripBackup(t *testing.T) {
+	paths, _ := filepath.Glob("../../data/backups/*/BCfgManager-Bolt-*.xml")
+	if len(paths) == 0 {
+		t.Skip("no backups in data/backups")
 	}
-	data, err := Bytes(in, cfg.DisplayCfgID)
-	if err != nil {
-		t.Fatal(err)
+	for _, path := range paths {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			in, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, err := Bytes(in, 53)
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, err := SetBytes(in, 53, data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(in, out) {
+				t.Fatal("round trip changed the file")
+			}
+		})
 	}
-	d, err := cfg.ParseDisplay(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err = d.Bytes()
-	if err != nil {
-		t.Fatal(err)
-	}
-	out, err := SetBytes(in, cfg.DisplayCfgID, data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(in, out) {
-		t.Fatal("round trip changed the file")
-	}
-	t.Logf("%d pages", len(d.Pages))
 }
 
 func entry(field int, value string) string {
