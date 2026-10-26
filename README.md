@@ -2,6 +2,14 @@
 
 A terminal tool to manage a Wahoo ELEMNT ROAM v1 over USB, without the phone app.
 
+<table>
+  <tr>
+    <td><img src="docs/screenshots/connect.png" alt="Connect screen" width="260"></td>
+    <td><img src="docs/screenshots/menu.png" alt="Main menu" width="260"></td>
+    <td><img src="docs/screenshots/screens.png" alt="Editing the workout page" width="260"></td>
+  </tr>
+</table>
+
 ## Why
 
 I crashed with my ROAM and its Bluetooth stopped working. The device still records rides fine, but without Bluetooth the companion app can't reach it: no screen setup, no route or ride sync. flatlinecc brings that back over the cable.
