@@ -17,7 +17,9 @@ const (
 	// App is the Wahoo app package on the device.
 	App = "com.wahoofitness.bolt"
 	// ConfigPath is the app's live config (SharedPreferences).
-	ConfigPath = "/data/data/com.wahoofitness.bolt/shared_prefs/BCfgManager-Bolt.xml"
+	ConfigPath = prefsDir + "/BCfgManager-Bolt.xml"
+
+	prefsDir = "/data/data/com.wahoofitness.bolt/shared_prefs"
 )
 
 // PullConfig reads the live config.
@@ -45,7 +47,9 @@ func saveBackup(doc []byte, backupDir string) (string, error) {
 // ApplyConfig writes doc in place of the live config and restarts the app so
 // it loads it. Back up first with BackupConfig.
 func ApplyConfig(ctx context.Context, serial string, doc []byte) error {
-	owner, err := adb.Shell(ctx, serial, "stat", "-c", "%u:%g", ConfigPath)
+	// The folder always belongs to the app. The file may not: push creates it
+	// as root, and an apply cut off before the chown leaves it that way.
+	owner, err := adb.Shell(ctx, serial, "stat", "-c", "%u:%g", prefsDir)
 	if err != nil {
 		return err
 	}

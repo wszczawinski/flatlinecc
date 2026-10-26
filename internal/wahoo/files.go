@@ -67,7 +67,8 @@ func PushRoute(ctx context.Context, serial, local string) error {
 
 func listFiles(ctx context.Context, serial, dir, pattern string) ([]File, error) {
 	// find prints nothing when there are no matches, where a glob would fail.
-	out, err := adb.Shell(ctx, serial, "find", dir, "-maxdepth", "1", "-name", "'"+pattern+"'", "-exec", "stat", "-c", "'%s %n'", "{}", "+")
+	// -iname: a route pushed as .GPX must be listed too.
+	out, err := adb.Shell(ctx, serial, "find", dir, "-maxdepth", "1", "-iname", "'"+pattern+"'", "-exec", "stat", "-c", "'%s %n'", "{}", "+")
 	if err != nil {
 		return nil, err
 	}
