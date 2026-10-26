@@ -1,3 +1,25 @@
+## [0.5.0] - 2026-10-26
+
+### 🚀 Features
+
+- Add -version flag
+
+### 🐛 Bug Fixes
+
+- *(tui)* Enable apply when the session backup finishes after a screen opened
+- *(backup)* Retry the session backup when the first attempt fails
+- *(wahoo)* Take the config owner from its folder, list .GPX routes
+
+### 📚 Documentation
+
+- Update features, session backup notes and later ideas
+- Add install and data folder sections, reorder format notes, trim plan
+- Add screenshots to the README
+
+### 🚜 Refactor
+
+- *(tui)* Drop placeholder, share list helpers, test App
+- Drop unused .cfg code, share list and apply helpers, split tui files
 ## [0.4.0] - 2026-10-24
 
 ### 🚀 Features
