@@ -174,3 +174,9 @@ trailer
   u16  0x0000         in every sample; maybe a count of a second section
                       (Intyre's reader has an unused `timestampFields`)
 ```
+
+## References
+
+- Intyre: [ADB enable and config backup / restore](https://gist.github.com/Intyre/2c0a8e337671ed6f523950ef08e3ca3f), [cfg file reader and key names](https://gist.github.com/Intyre/05957b64b3fb1306361ca9e79ca01ac1), [`DISPLAY_CFG` and page / field type tables](https://gist.github.com/Intyre/aefc6cced18f0610df57adcb70a11453#displaycfg)
+- [elemntary](https://github.com/vti/elemntary): Electron app for ELEMNT devices over adb
+- [WaoStats](https://github.com/masc4ii/WaoStats): ride sync over adb

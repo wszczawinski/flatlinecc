@@ -103,7 +103,11 @@ git push && git push --tags
 
 ## Status
 
-All menu items work. Open questions about the config format are in [docs/format.md](docs/format.md), ideas and research notes in [PLAN.md](PLAN.md).
+All menu items work. Open questions about the config format are in [docs/format.md](docs/format.md).
+
+## License
+
+[MIT](LICENSE)
 
 ## Credits
 
