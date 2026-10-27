@@ -1,3 +1,13 @@
+## [1.0.0] - 2026-10-27
+
+### 📚 Documentation
+
+- Add MIT license, fold plan into README and format notes
+
+### ⚙️ Miscellaneous Tasks
+
+- Run tests on push
+- Update checkout and setup-go actions
 ## [0.5.0] - 2026-10-26
 
 ### 🚀 Features
