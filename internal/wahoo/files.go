@@ -65,6 +65,15 @@ func PushRoute(ctx context.Context, serial, local string) error {
 	return adb.PushFile(ctx, serial, local, path.Join(RoutesDir, filepath.Base(local)))
 }
 
+// HashRoutes returns the SHA-256 of each .gpx file in RoutesDir, by name.
+func HashRoutes(ctx context.Context, serial string) (map[string]string, error) {
+	out, err := adb.Shell(ctx, serial, "find", RoutesDir, "-maxdepth", "1", "-iname", "'*.gpx'", "-exec", "sha256sum", "{}", "+")
+	if err != nil {
+		return nil, err
+	}
+	return parseHashes(out), nil
+}
+
 func listFiles(ctx context.Context, serial, dir, pattern string) ([]File, error) {
 	// find prints nothing when there are no matches, where a glob would fail.
 	// -iname: a route pushed as .GPX must be listed too.
@@ -73,6 +82,18 @@ func listFiles(ctx context.Context, serial, dir, pattern string) ([]File, error)
 		return nil, err
 	}
 	return parseFiles(out), nil
+}
+
+// parseHashes reads sha256sum lines: the hash, two spaces, then the path.
+func parseHashes(out string) map[string]string {
+	hashes := map[string]string{}
+	for line := range strings.SplitSeq(out, "\n") {
+		hash, p, ok := strings.Cut(strings.TrimRight(line, "\r"), "  ")
+		if ok && len(hash) == 64 {
+			hashes[path.Base(p)] = hash
+		}
+	}
+	return hashes
 }
 
 // parseFiles reads `stat -c '%s %n'` lines: size, a space, then the path.
