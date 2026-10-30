@@ -1,3 +1,14 @@
+## [1.1.0] - 2026-10-30
+
+### 🚀 Features
+
+- *(datafields)* Name the summit fields and rename the climb page to Summit
+- *(wahoo)* Hash routes on the device with sha256sum
+- *(tui)* Auto sync rides and routes on connect, compare routes by hash
+
+### 📚 Documentation
+
+- Update screenshots for the new status lines
 ## [1.0.0] - 2026-10-27
 
 ### 📚 Documentation
