@@ -38,11 +38,12 @@ type Rides struct {
 	queue   []string // rides left to copy
 	copied  int
 	loading bool
+	syncing bool // auto sync is running; copying waits so no ride is copied twice at once
 }
 
 // NewRides returns the Rides screen for serial.
-func NewRides(serial, dataDir string) Rides {
-	return Rides{serial: serial, dir: ridesDir(dataDir), loading: true}
+func NewRides(serial, dataDir string, syncing bool) Rides {
+	return Rides{serial: serial, dir: ridesDir(dataDir), loading: true, syncing: syncing}
 }
 
 func (r Rides) Init() tea.Cmd {
@@ -61,6 +62,14 @@ func (r Rides) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Names start with the start time, so name order is time order.
 		slices.SortFunc(r.rides, func(a, b wahoo.File) int { return cmp.Compare(b.Name, a.Name) })
 		r.synced = syncedRides(r.dir, r.rides)
+	case syncStartedMsg:
+		r.syncing = r.syncing || !msg.routes
+	case syncDoneMsg:
+		if msg.routes {
+			return r, nil
+		}
+		r.syncing, r.status = false, ""
+		return r, r.Init()
 	case rideCopiedMsg:
 		if msg.err != nil {
 			r.queue = nil
@@ -85,17 +94,16 @@ func (r Rides) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "up", "k", "down", "j":
 			r.cursor = moveCursor(r.cursor, len(r.rides), msg.String())
 		case "s":
-			r.status = ""
-			for _, ride := range r.rides {
-				if !r.synced[ride.Name] {
-					r.queue = append(r.queue, ride.Name)
-				}
+			if r.syncing {
+				r.status = mutedStyle.Render("Auto sync is copying rides, wait for it to finish")
+				return r, nil
 			}
+			r.status = ""
+			r.queue = newRides(r.rides, r.synced)
 			if len(r.queue) == 0 {
 				r.status = mutedStyle.Render("All rides already copied")
 				return r, nil
 			}
-			slices.Reverse(r.queue) // oldest first, so a stopped copy leaves no gaps
 			r.copied = 0
 			return r, r.copyNext()
 		}
@@ -106,9 +114,7 @@ func (r Rides) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (r Rides) copyNext() tea.Cmd {
 	name := r.queue[0]
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), rideTimeout)
-		defer cancel()
-		return rideCopiedMsg{name, wahoo.PullRide(ctx, r.serial, name, r.dir)}
+		return rideCopiedMsg{name, copyRide(r.serial, name, r.dir)}
 	}
 }
 

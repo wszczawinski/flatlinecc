@@ -14,6 +14,9 @@ import (
 // Config is the settings file.
 type Config struct {
 	DataDir string `toml:"data_dir"`
+	// Sync on every connect.
+	AutoSyncRides  bool `toml:"auto_sync_rides"`
+	AutoSyncRoutes bool `toml:"auto_sync_routes"`
 }
 
 // Default returns the settings used when there is no file yet.

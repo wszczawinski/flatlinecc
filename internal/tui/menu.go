@@ -19,10 +19,10 @@ var menuItems = []struct {
 		return NewSounds(serial, a.SessionBackup() != "")
 	}},
 	{"Rides", func(a App, serial string) tea.Model {
-		return NewRides(serial, a.cfg.DataDir)
+		return NewRides(serial, a.cfg.DataDir, a.rides.running())
 	}},
 	{"Routes", func(a App, serial string) tea.Model {
-		return NewRoutes(serial, a.cfg.DataDir)
+		return NewRoutes(serial, a.cfg.DataDir, a.routes.running())
 	}},
 	{"Backup / restore", func(a App, serial string) tea.Model {
 		return NewBackups(serial, a.cfg.DataDir, a.SessionBackup())

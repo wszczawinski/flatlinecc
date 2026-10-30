@@ -21,10 +21,10 @@ Run `flatlinecc` and pick from a menu:
 - **Screens**: change, add, remove and reorder data fields on each page
 - **Sounds**: mute and buzzer settings
 - **Rides**: copy new rides to the data folder. The device is never changed
-- **Routes**: sync `.gpx` routes both ways between the data folder and the device. When both have a route with different sizes, the local one wins; nothing is deleted
+- **Routes**: sync `.gpx` routes both ways between the data folder and the device. When both have a route with different content (size, then SHA-256), the local one wins; nothing is deleted
 - **Backup / restore**: save and restore the device config
 - **Device info**
-- **Settings**: where the data folder is
+- **Settings**: where the data folder is, and auto sync of rides and routes on connect
 
 Changes to screens and sounds are staged first. Apply shows what changes, then writes the config to the device and restarts the Wahoo app, which takes a few seconds.
 
@@ -65,6 +65,8 @@ data/
 ```
 
 The session backup is the config as it was when you connected. It's removed when you quit normally, and kept after a crash or a failed apply so you can restore it. Apply and restore stay disabled until it exists.
+
+With auto sync turned on in Settings, rides and routes sync on every connect, as the Rides and Routes screens would. Each is turned on separately, and both are off by default. Since nothing is deleted, a route deleted only from the data folder comes back from the device on the next sync.
 
 ## Development
 

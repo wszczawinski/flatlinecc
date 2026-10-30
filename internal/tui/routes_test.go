@@ -51,8 +51,28 @@ func TestMergeRoutes(t *testing.T) {
 	}
 }
 
+func TestChangedRoutePushes(t *testing.T) {
+	rt := route{name: "a.gpx", local: 5, onDev: 5}
+	if rt.push() {
+		t.Fatal("same size and content pushed")
+	}
+	rt.changed = true
+	if !rt.push() || rt.pull() {
+		t.Fatal("same size, different content not pushed")
+	}
+}
+
+func TestHashFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "a.gpx")
+	os.WriteFile(path, []byte("abc"), 0o644)
+	got, err := hashFile(path)
+	if want := "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"; err != nil || got != want {
+		t.Fatalf("got %q, %v", got, err)
+	}
+}
+
 func TestRoutesQueueStopsOnError(t *testing.T) {
-	r := NewRoutes("serial", t.TempDir())
+	r := NewRoutes("serial", t.TempDir(), false)
 	m, _ := r.Update(routesMsg{routes: mergeRoutes(
 		[]wahoo.File{{Name: "a.gpx", Size: 1}, {Name: "b.gpx", Size: 1}},
 		[]wahoo.File{{Name: "b.gpx", Size: 1}, {Name: "c.gpx", Size: 1}},

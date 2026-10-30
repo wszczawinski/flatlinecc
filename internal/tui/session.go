@@ -38,9 +38,9 @@ type backup struct {
 func (b backup) status() string {
 	switch {
 	case !b.done:
-		return mutedStyle.Render("backing up…")
+		return mutedStyle.Render("… backing up")
 	case b.err != nil:
-		return errorStyle.Render("backup failed: " + b.err.Error())
+		return errorStyle.Render("✗ backup failed: " + b.err.Error())
 	}
-	return mutedStyle.Render("backup saved")
+	return checkMark + mutedStyle.Render(" backup saved")
 }

@@ -18,7 +18,7 @@ func TestLoadMissingReturnsDefault(t *testing.T) {
 
 func TestSaveLoad(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
-	want := Config{DataDir: "/tmp/rides"}
+	want := Config{DataDir: "/tmp/rides", AutoSyncRides: true}
 	if err := Save(want); err != nil {
 		t.Fatal(err)
 	}

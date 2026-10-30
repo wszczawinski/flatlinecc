@@ -30,6 +30,9 @@ var (
 	statusStyle   = lipgloss.NewStyle().PaddingLeft(2).PaddingTop(1)
 )
 
+// checkMark starts a status line for something that finished fine.
+var checkMark = selectedStyle.Render("✓")
+
 // crumbs builds a breadcrumb title starting at the app name.
 func crumbs(path ...string) string {
 	return strings.Join(append([]string{"flatlinecc"}, path...), " › ")

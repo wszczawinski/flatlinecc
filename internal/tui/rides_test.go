@@ -21,7 +21,7 @@ func TestSyncedRides(t *testing.T) {
 
 func TestRidesOrderAndQueue(t *testing.T) {
 	dir := t.TempDir()
-	r := NewRides("serial", dir)
+	r := NewRides("serial", dir, false)
 	m, _ := r.Update(ridesMsg{rides: []wahoo.File{
 		{Name: "2026-09-24-152538-x.fit", Size: 1},
 		{Name: "2026-09-30-120334-x.fit", Size: 1},
@@ -77,5 +77,18 @@ func TestWindow(t *testing.T) {
 		if s, e := window(tt.cursor, tt.n, tt.rows); s != tt.start || e != tt.end {
 			t.Errorf("window(%d, %d, %d) = %d, %d; want %d, %d", tt.cursor, tt.n, tt.rows, s, e, tt.start, tt.end)
 		}
+	}
+}
+
+func TestRidesWaitForAutoSync(t *testing.T) {
+	a := connectedApp(NewRides("serial", t.TempDir(), true))
+	m, _ := a.Update(ridesMsg{rides: []wahoo.File{{Name: "a.fit", Size: 1}}})
+	m, cmd := m.(App).Update(key("s"))
+	if cmd != nil || len(m.(App).screen.(Rides).queue) > 0 {
+		t.Fatal("copy started during auto sync")
+	}
+	m, cmd = m.(App).Update(syncDoneMsg{})
+	if m.(App).screen.(Rides).syncing || cmd == nil {
+		t.Fatal("screen not released and reloaded after auto sync")
 	}
 }

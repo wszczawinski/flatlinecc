@@ -2,7 +2,6 @@ package tui
 
 import (
 	"cmp"
-	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -20,11 +19,12 @@ import (
 type route struct {
 	name         string
 	local, onDev int64
+	changed      bool // same size on both sides, different content
 }
 
 // push reports whether sync sends the route to the device. Local wins when
 // both differ: routes are edited on the computer.
-func (r route) push() bool { return r.local >= 0 && r.local != r.onDev }
+func (r route) push() bool { return r.local >= 0 && (r.local != r.onDev || r.changed) }
 
 // pull reports whether sync copies the route from the device.
 func (r route) pull() bool { return r.local < 0 }
@@ -58,26 +58,18 @@ type Routes struct {
 	queue   []route // routes left to sync
 	synced  int
 	loading bool
+	syncing bool // auto sync is running; syncing waits so no route is copied twice at once
 }
 
 // NewRoutes returns the Routes screen for serial.
-func NewRoutes(serial, dataDir string) Routes {
-	return Routes{serial: serial, dir: routesDir(dataDir), loading: true}
+func NewRoutes(serial, dataDir string, syncing bool) Routes {
+	return Routes{serial: serial, dir: routesDir(dataDir), loading: true, syncing: syncing}
 }
 
 func (r Routes) Init() tea.Cmd {
 	return func() tea.Msg {
-		local, err := localRoutes(r.dir)
-		if err != nil {
-			return routesMsg{err: err}
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), adbTimeout)
-		defer cancel()
-		remote, err := wahoo.ListRoutes(ctx, r.serial)
-		if err != nil {
-			return routesMsg{err: err}
-		}
-		return routesMsg{routes: mergeRoutes(local, remote)}
+		routes, err := readRoutes(r.serial, r.dir)
+		return routesMsg{routes, err}
 	}
 }
 
@@ -86,6 +78,14 @@ func (r Routes) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case routesMsg:
 		r.loading, r.err, r.routes = false, msg.err, msg.routes
 		r.cursor = min(r.cursor, max(len(r.routes)-1, 0))
+	case syncStartedMsg:
+		r.syncing = r.syncing || msg.routes
+	case syncDoneMsg:
+		if !msg.routes {
+			return r, nil
+		}
+		r.syncing, r.status = false, ""
+		return r, r.Init()
 	case routeSyncedMsg:
 		if msg.err != nil {
 			r.queue = nil
@@ -109,12 +109,12 @@ func (r Routes) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "up", "k", "down", "j":
 			r.cursor = moveCursor(r.cursor, len(r.routes), msg.String())
 		case "s":
-			r.status = ""
-			for _, rt := range r.routes {
-				if rt.push() || rt.pull() {
-					r.queue = append(r.queue, rt)
-				}
+			if r.syncing {
+				r.status = mutedStyle.Render("Auto sync is syncing routes, wait for it to finish")
+				return r, nil
 			}
+			r.status = ""
+			r.queue = pendingRoutes(r.routes)
 			if len(r.queue) == 0 {
 				r.status = mutedStyle.Render("Everything in sync")
 				return r, nil
@@ -129,12 +129,7 @@ func (r Routes) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (r Routes) syncNext() tea.Cmd {
 	rt := r.queue[0]
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), routeTimeout)
-		defer cancel()
-		if rt.pull() {
-			return routeSyncedMsg{wahoo.PullRoute(ctx, r.serial, rt.name, r.dir)}
-		}
-		return routeSyncedMsg{wahoo.PushRoute(ctx, r.serial, filepath.Join(r.dir, rt.name))}
+		return routeSyncedMsg{syncRoute(r.serial, r.dir, rt)}
 	}
 }
 
@@ -195,12 +190,7 @@ func (r Routes) View() string {
 		return frame(crumbs("Routes"), "No routes. Put .gpx files in "+r.dir+".", "esc back")
 	}
 
-	pending := 0
-	for _, rt := range r.routes {
-		if rt.push() || rt.pull() {
-			pending++
-		}
-	}
+	pending := len(pendingRoutes(r.routes))
 	lines := []string{mutedStyle.Render(fmt.Sprintf("%d routes · %d to sync · local folder %s", len(r.routes), pending, r.dir)), ""}
 	start, end := window(r.cursor, len(r.routes), listRows)
 	for i := start; i < end; i++ {

@@ -135,3 +135,65 @@ func TestBackupStopsRetrying(t *testing.T) {
 		t.Fatal("replug did not retry the backup")
 	}
 }
+
+func TestAutoSyncOnConnect(t *testing.T) {
+	a := connectedApp(nil)
+	a.cfg.AutoSyncRides = true
+	m, _ := a.Update(devicesMsg{devices: a.devices})
+	a = m.(App)
+	if !a.rides.started || a.routes.started || !a.backup.started {
+		t.Fatalf("on connect: rides %+v, routes %+v, backup %+v", a.rides, a.routes, a.backup)
+	}
+
+	// routes turned on later sync on the next poll, rides don't run again
+	a.cfg.AutoSyncRoutes = true
+	m, cmd := a.Update(devicesMsg{devices: a.devices})
+	a = m.(App)
+	if !a.routes.started || cmd == nil {
+		t.Fatal("routes did not start after turning them on")
+	}
+	m, _ = a.Update(syncListedMsg{routes: true, steps: []func() error{nil, nil}})
+	m, _ = m.(App).Update(syncStepMsg{routes: true})
+	if r := m.(App).routes; r.done || r.n != 1 || len(r.steps) != 1 || m.(App).rides.listed {
+		t.Fatalf("after one route: %+v", r)
+	}
+	if got := m.(App).routes.status("routes", "route", "synced"); got != "… syncing routes 2/2" {
+		t.Fatalf("status %q", got)
+	}
+	m, _ = m.(App).Update(syncStepMsg{routes: true})
+	if r := m.(App).routes; !r.done || r.n != 2 {
+		t.Fatalf("after last route: %+v", r)
+	}
+
+	// unplugging resets it, so the next connect syncs again
+	m, _ = a.Update(devicesMsg{})
+	if m.(App).rides.started {
+		t.Fatal("sync state kept after unplug")
+	}
+}
+
+func TestAutoSyncOff(t *testing.T) {
+	a := connectedApp(nil)
+	m, _ := a.Update(devicesMsg{devices: a.devices})
+	if a := m.(App); a.rides.started || a.routes.started {
+		t.Fatal("sync started while turned off")
+	}
+}
+
+func TestAutoSyncStartsOnSave(t *testing.T) {
+	a := connectedApp(NewRides("serial", t.TempDir(), false))
+	cfg := a.cfg
+	cfg.AutoSyncRides = true
+	m, cmd := a.Update(configSavedMsg{cfg})
+	if !m.(App).rides.started || cmd == nil {
+		t.Fatal("turning rides on did not start the sync")
+	}
+	m, _ = m.(App).Update(syncStartedMsg{})
+	if !m.(App).screen.(Rides).syncing {
+		t.Fatal("open Rides screen not told the sync started")
+	}
+	m, _ = m.(App).Update(syncStartedMsg{routes: true})
+	if !m.(App).screen.(Rides).syncing {
+		t.Fatal("routes sync start released the Rides screen")
+	}
+}
