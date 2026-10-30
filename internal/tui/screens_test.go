@@ -47,7 +47,7 @@ func press(s Screens, keys ...string) Screens {
 
 func TestListOrder(t *testing.T) {
 	pages := []display.Page{page(1), page(3), page(0), page(8), page(39), page(2)}
-	// workout, elevation, climb, map first, then the rest in file order
+	// workout, elevation, summit, map first, then the rest in file order
 	if got, want := listOrder(pages), []int{2, 5, 4, 1, 0, 3}; !slices.Equal(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}

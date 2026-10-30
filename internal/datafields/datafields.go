@@ -52,6 +52,7 @@ var pageOnly = map[uint8][]uint16{
 	4:  {120, 121, 122, 180},           // KICKR
 	8:  {238, 239, 240, 241, 242},      // Segment
 	15: {293, 295, 296, 297, 298, 299}, // Planned Workout
+	39: {426, 427, 428, 429},           // Summit
 }
 
 var pageNames = map[uint8]string{
@@ -66,7 +67,7 @@ var pageNames = map[uint8]string{
 	15: "Planned Workout",
 	25: "Pedal Monitor",
 	29: "Multisport",
-	39: "Climb",
+	39: "Summit",
 }
 
 var names = map[uint16]string{
@@ -317,4 +318,8 @@ var names = map[uint16]string{
 	// 390: "Max Vertical Oscillation",
 	// 391: "Min Vertical Oscillation",
 	425: "Grade",
+	426: "Summit",
+	427: "Summit Ascent To Go",
+	428: "Summit Distance To Go",
+	429: "Summit Time To Go",
 }

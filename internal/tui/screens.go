@@ -18,7 +18,7 @@ import (
 )
 
 // pageOrder lists page types shown first, in this order; the rest follow in file order.
-var pageOrder = []uint8{0, 2, 39, 3} // workout, elevation, climb, map
+var pageOrder = []uint8{0, 2, 39, 3} // workout, elevation, summit, map
 
 type screensMsg struct {
 	base   []byte
@@ -155,7 +155,7 @@ func (s Screens) updatePicker(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // minFields is the fewest fields a page type may keep; other pages need 1.
-var minFields = map[uint8]int{0: 3, 2: 3, 39: 3, 3: 2} // workout, elevation, climb, map
+var minFields = map[uint8]int{0: 3, 2: 3, 39: 3, 3: 2} // workout, elevation, summit, map
 
 // maxFields is the most fields a page type may hold, from the stock layout;
 // more per page is untested. Unknown types keep what the device has.
@@ -167,7 +167,7 @@ var maxFields = map[uint8]int{
 	4:  4,  // KICKR
 	8:  7,  // segment
 	15: 6,  // planned workout
-	39: 5,  // climb
+	39: 5,  // summit
 }
 
 // fieldLimits returns how many fields page i may hold.

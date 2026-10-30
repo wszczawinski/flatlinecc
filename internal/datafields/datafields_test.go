@@ -6,7 +6,7 @@ import (
 )
 
 func TestForPage(t *testing.T) {
-	const workout, lap, kickr = 0, 1, 4
+	const workout, lap, elevation, kickr, summit = 0, 1, 2, 4, 39
 	tests := []struct {
 		name  string
 		page  uint8
@@ -19,6 +19,8 @@ func TestForPage(t *testing.T) {
 		{"lap field hidden elsewhere", workout, 11, false},
 		{"kickr field on kickr page", kickr, 120, true},
 		{"kickr field hidden on lap page", lap, 120, false},
+		{"summit field on summit page", summit, 426, true},
+		{"summit field hidden on elevation page", elevation, 426, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
